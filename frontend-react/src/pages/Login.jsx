@@ -29,7 +29,7 @@ export default function Login() {
       localStorage.setItem('user', JSON.stringify(user));
       window.dispatchEvent(new Event('auth-change'));
 
-      nav('/dashboard');
+      nav('/');
     } catch (e) {
       setMsg(e?.response?.data?.error || e?.response?.data?.message || 'Login failed. Check your email and password.');
     } finally {

@@ -24,7 +24,7 @@ export default function AgencyLogin() {
       localStorage.setItem('user', JSON.stringify(user));
       window.dispatchEvent(new Event('auth-change'));
 
-      nav('/agency');
+      nav('/dashboard');
     } catch (e) {
       setMsg(e?.response?.data?.error || 'Agency login failed');
     }
