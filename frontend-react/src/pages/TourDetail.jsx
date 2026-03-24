@@ -3,6 +3,11 @@ import { api, getToken } from '../api/client';
 import { useParams, useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 
+const USD_TO_NPR = 133;
+function toNPR(usd) {
+  return 'NPR ' + new Intl.NumberFormat('en-NP').format(Math.round(Number(usd) * USD_TO_NPR));
+}
+
 export default function TourDetail() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -11,6 +16,8 @@ export default function TourDetail() {
   const [travelers, setTravelers] = useState([{ name: '', age: '', contact: '' }]);
   const [usePoints, setUsePoints] = useState(false);
   const [booking, setBooking] = useState(false);
+  const [wishlistToast, setWishlistToast] = useState(false);
+  const [wishlistToastMsg, setWishlistToastMsg] = useState(' Added to wishlist!');
 
   useEffect(() => {
     api.get(`/api/tours/${id}`).then(res => setTour(res.data.tour)).catch(() => {});
@@ -29,19 +36,26 @@ export default function TourDetail() {
   }
 
   async function addWishlist() {
-    setMsg({ text: '', type: '' });
-    if (!getToken()) { setMsg({ text: 'Please login first.', type: 'err' }); return; }
+    if (!getToken()) { setMsg({ text: 'Please login to add to wishlist.', type: 'err' }); return; }
     try {
       await api.post('/api/wishlist', { tour_id: Number(id) });
-      setMsg({ text: '❤️ Added to wishlist!', type: 'ok' });
+      setWishlistToastMsg(' Added to wishlist!');
+      setWishlistToast(true);
+      setTimeout(() => setWishlistToast(false), 3000);
     } catch (e) {
-      setMsg({ text: e?.response?.data?.error || 'Failed to add.', type: 'err' });
+      if (e?.response?.status === 409) {
+        setWishlistToastMsg(' Already in your wishlist!');
+        setWishlistToast(true);
+        setTimeout(() => setWishlistToast(false), 3000);
+      } else {
+        setMsg({ text: e?.response?.data?.error || 'Failed to add.', type: 'err' });
+      }
     }
   }
 
   async function bookNow() {
     setMsg({ text: '', type: '' });
-    if (!getToken()) { setMsg({ text: 'Please login first.', type: 'err' }); return; }
+    if (!getToken()) { setMsg({ text: 'Please login to book.', type: 'err' }); return; }
     setBooking(true);
     try {
       const res = await api.post('/api/bookings', { tour_id: Number(id), travelers, use_loyalty_points: usePoints });
@@ -63,49 +77,64 @@ export default function TourDetail() {
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap');
-        .td-wrap { max-width: 900px; margin: 0 auto; padding: 40px 24px 60px; font-family: 'DM Sans', sans-serif; }
-        .td-card { background: #131918; border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; overflow: hidden; margin-bottom: 20px; }
-        .td-card-body { padding: 28px; }
-        .td-img { width: 100%; height: 320px; object-fit: cover; display: block; }
-        .td-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #a8d96b; margin-bottom: 8px; }
-        .td-title { font-family: 'Playfair Display', serif; font-size: clamp(24px, 4vw, 34px); font-weight: 700; color: #fff; margin: 0 0 12px; }
-        .td-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-        .td-pill { font-size: 12px; font-weight: 600; background: rgba(255,255,255,0.06); color: rgba(240,237,232,0.6); border-radius: 100px; padding: 4px 12px; }
-        .td-pill-green { background: rgba(168,217,107,0.12); color: #a8d96b; }
-        .td-price { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; color: #a8d96b; margin: 0 0 4px; }
-        .td-price-sub { font-size: 13px; color: rgba(240,237,232,0.4); margin-bottom: 16px; }
-        .td-desc { font-size: 15px; color: rgba(240,237,232,0.65); line-height: 1.7; margin-bottom: 20px; }
+        .td-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 24px 60px; font-family: 'DM Sans', sans-serif; }
+        .td-hero { position: relative; border-radius: 24px; overflow: hidden; margin-bottom: 28px; }
+        .td-hero-img { width: 100%; height: 420px; object-fit: cover; display: block; }
+        .td-hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(10,14,13,0.85) 0%, rgba(10,14,13,0.1) 60%); }
+        .td-hero-body { position: absolute; bottom: 0; left: 0; right: 0; padding: 32px; }
+        .td-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #a8d96b; margin-bottom: 10px; }
+        .td-title { font-family: 'Playfair Display', serif; font-size: clamp(26px, 4vw, 40px); font-weight: 700; color: #fff; margin: 0 0 14px; line-height: 1.2; }
+        .td-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+        .td-pill { font-size: 12px; font-weight: 600; background: rgba(255,255,255,0.12); color: rgba(240,237,232,0.85); border-radius: 100px; padding: 4px 14px; backdrop-filter: blur(8px); }
+        .td-pill-green { background: rgba(168,217,107,0.2); color: #a8d96b; }
+        .td-main { display: grid; grid-template-columns: 1fr 340px; gap: 20px; margin-bottom: 20px; }
+        .td-card { background: #131918; border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; padding: 28px; }
+        .td-price { font-family: 'DM Sans', sans-serif; font-size: 36px; font-weight: 700; color: #a8d96b; letter-spacing: -0.02em; margin-bottom: 4px; }
+        .td-price-sub { font-size: 13px; color: rgba(240,237,232,0.4); margin-bottom: 20px; }
+        .td-desc { font-size: 15px; color: rgba(240,237,232,0.65); line-height: 1.75; }
         .td-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 20px 0; }
-        .td-btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
-        .td-btn { background: #a8d96b; color: #1a2010; border: none; border-radius: 100px; padding: 12px 28px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.2s; text-decoration: none; display: inline-block; }
-        .td-btn:hover { background: #c1e88d; }
-        .td-btn-ghost { background: rgba(168,217,107,0.1); color: #a8d96b; border: 1px solid rgba(168,217,107,0.25); border-radius: 100px; padding: 12px 28px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        .td-btn-ghost:hover { background: rgba(168,217,107,0.2); }
-        .td-section-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #fff; margin: 0 0 16px; }
-        .td-itin { display: flex; flex-direction: column; gap: 12px; }
-        .td-itin-item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 14px 18px; }
-        .td-itin-day { font-size: 13px; font-weight: 700; color: #a8d96b; margin-bottom: 4px; }
+        .td-section-title { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: #fff; margin: 0 0 14px; }
+        .td-info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 14px; }
+        .td-info-label { color: rgba(240,237,232,0.4); }
+        .td-info-value { color: #f0ede8; font-weight: 500; }
+        .td-btn { width: 100%; background: #a8d96b; color: #1a2010; border: none; border-radius: 100px; padding: 14px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.2s; text-align: center; margin-bottom: 12px; }
+        .td-btn:hover:not(:disabled) { background: #c1e88d; }
+        .td-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .td-btn-ghost { width: 100%; background: rgba(168,217,107,0.08); color: #a8d96b; border: 1px solid rgba(168,217,107,0.2); border-radius: 100px; padding: 12px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; text-align: center; }
+        .td-btn-ghost:hover { background: rgba(168,217,107,0.15); }
+        .td-points-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+        .td-points-label { font-size: 13px; color: rgba(240,237,232,0.5); }
+        .td-msg-ok { background: rgba(168,217,107,0.1); border: 1px solid rgba(168,217,107,0.2); color: #a8d96b; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; }
+        .td-msg-err { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.15); color: #f87171; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; }
+        .td-toast { position: fixed; top: 80px; right: 24px; border-radius: 12px; padding: 12px 20px; font-size: 13px; font-weight: 600; z-index: 9999; box-shadow: 0 8px 32px rgba(0,0,0,0.4); animation: toastIn 0.5s ease; }
+        .td-toast.green { background: #1a2e1a; border: 1px solid rgba(168,217,107,0.4); color: #a8d96b; }
+        .td-toast.red { background: #2e1a1a; border: 1px solid rgba(248,113,113,0.4); color: #f87171; }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        .td-full-card { background: #131918; border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; padding: 28px; margin-bottom: 20px; overflow: hidden; }
+        .td-itin { display: flex; flex-direction: column; gap: 10px; }
+        .td-itin-item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 14px 18px; display: flex; gap: 16px; align-items: flex-start; }
+        .td-itin-day { font-size: 11px; font-weight: 700; color: #a8d96b; background: rgba(168,217,107,0.1); border-radius: 8px; padding: 4px 10px; white-space: nowrap; flex-shrink: 0; }
         .td-itin-title { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 4px; }
-        .td-itin-details { font-size: 13px; color: rgba(240,237,232,0.5); }
+        .td-itin-details { font-size: 13px; color: rgba(240,237,232,0.5); line-height: 1.5; }
         .td-traveler { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 18px; margin-bottom: 12px; }
-        .td-traveler-title { font-size: 13px; font-weight: 700; color: #a8d96b; margin-bottom: 12px; }
+        .td-traveler-title { font-size: 12px; font-weight: 700; color: #a8d96b; letter-spacing: 0.08em; text-transform: uppercase; margin: 0; }
         .td-traveler-grid { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 12px; }
-        .td-input-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(240,237,232,0.4); margin-bottom: 5px; }
+        .td-input-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(240,237,232,0.35); margin-bottom: 5px; }
         .td-input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 12px; color: #f0ede8; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; box-sizing: border-box; }
         .td-input:focus { border-color: rgba(168,217,107,0.4); }
-        .td-points-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-        .td-points-label { font-size: 13px; color: rgba(240,237,232,0.55); }
-        .td-msg-ok { background: rgba(168,217,107,0.1); border: 1px solid rgba(168,217,107,0.25); color: #a8d96b; border-radius: 12px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; }
-        .td-msg-err { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); color: #f87171; border-radius: 12px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; }
-        @media (max-width: 560px) { .td-traveler-grid { grid-template-columns: 1fr; } .td-btn-row { flex-direction: column; } }
+        .td-add-traveler { background: transparent; color: rgba(240,237,232,0.5); border: 1px dashed rgba(255,255,255,0.15); border-radius: 12px; padding: 12px; width: 100%; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; margin-bottom: 16px; }
+        .td-add-traveler:hover { border-color: rgba(168,217,107,0.3); color: #a8d96b; }
+        .td-remove-btn { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.2); color: #f87171; border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+        @media (max-width: 768px) { .td-main { grid-template-columns: 1fr; } .td-traveler-grid { grid-template-columns: 1fr; } .td-hero-img { height: 280px; } }
       `}</style>
 
       <div className="td-wrap">
 
-        {/* Hero Card */}
-        <div className="td-card">
-          <img className="td-img" src={tour.image_url || `https://picsum.photos/seed/tour${id}/1200/800`} alt={tour.title} />
-          <div className="td-card-body">
+        {/* Hero */}
+        <div className="td-hero">
+          <img className="td-hero-img" src={tour.image_url || `https://picsum.photos/seed/tour${id}/1200/800`} alt={tour.title} />
+          <div className="td-hero-overlay" />
+          <div className="td-hero-body">
             <div className="td-tag">🏔 Tour Details</div>
             <h1 className="td-title">{tour.title}</h1>
             <div className="td-meta">
@@ -114,61 +143,42 @@ export default function TourDetail() {
               {tour.duration_days && <span className="td-pill">{tour.duration_days} days</span>}
               {tour.rating && <span className="td-pill td-pill-green">★ {Number(tour.rating).toFixed(1)}</span>}
             </div>
-            <div className="td-price">${Number(tour.price_usd).toFixed(2)}</div>
+          </div>
+        </div>
+
+        {/* Main 2-column */}
+        <div className="td-main">
+
+          {/* Left — Info */}
+          <div className="td-card">
+            <div className="td-price">{toNPR(tour.price_usd)}</div>
             <div className="td-price-sub">per person</div>
-            {tour.description && <p className="td-desc">{tour.description}</p>}
             <div className="td-divider" />
-            {msg.text && <div className={msg.type === 'ok' ? 'td-msg-ok' : 'td-msg-err'}>{msg.text}</div>}
-            <div className="td-btn-row">
-              <button className="td-btn-ghost" onClick={addWishlist}>❤️ Add to Wishlist</button>
-            </div>
+            <div className="td-info-row"><span className="td-info-label">Destination</span><span className="td-info-value">{tour.destination}</span></div>
+            <div className="td-info-row"><span className="td-info-label">Category</span><span className="td-info-value">{tour.category}</span></div>
+            <div className="td-info-row"><span className="td-info-label">Duration</span><span className="td-info-value">{tour.duration_days} days</span></div>
+            <div className="td-info-row"><span className="td-info-label">Rating</span><span className="td-info-value">★ {Number(tour.rating).toFixed(1)}</span></div>
+            {tour.description && (<><div className="td-divider" /><p className="td-desc">{tour.description}</p></>)}
           </div>
-        </div>
 
-        {/* Itinerary */}
-        <div className="td-card">
-          <div className="td-card-body">
-            <div className="td-section-title">Day-wise Itinerary</div>
-            {(tour.itinerary || []).length === 0 ? (
-              <div style={{ fontSize: 14, color: 'rgba(240,237,232,0.4)' }}>No itinerary set yet.</div>
-            ) : (
-              <div className="td-itin">
-                {tour.itinerary.map((d, idx) => (
-                  <div key={idx} className="td-itin-item">
-                    <div className="td-itin-day">Day {d.day}</div>
-                    <div className="td-itin-title">{d.title}</div>
-                    <div className="td-itin-details">{d.details}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Map */}
-        <div className="td-card">
-          <div className="td-card-body">
-            <div className="td-section-title">Location Map</div>
-            {!tour.latitude || !tour.longitude ? (
-              <div style={{ fontSize: 14, color: 'rgba(240,237,232,0.4)' }}>No map coordinates available.</div>
-            ) : (
-              <div id="td-map" style={{ height: 320, borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }} />
-            )}
-          </div>
-        </div>
-
-        {/* Booking */}
-        <div className="td-card">
-          <div className="td-card-body">
+          {/* Right — Booking */}
+          <div className="td-card">
             <div className="td-section-title">Book This Tour</div>
-            <div style={{ fontSize: 13, color: 'rgba(240,237,232,0.45)', marginBottom: 20 }}>Add traveler details below to proceed with booking.</div>
+            <div style={{ fontSize: 13, color: 'rgba(240,237,232,0.4)', marginBottom: 20 }}>Add traveler details to proceed.</div>
 
             {travelers.map((t, i) => (
               <div key={i} className="td-traveler">
-                <div className="td-traveler-title">Traveler {i + 1}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div className="td-traveler-title">Traveler {i + 1}</div>
+                  {i > 0 && (
+                    <button className="td-remove-btn" onClick={() => setTravelers(prev => prev.filter((_, idx) => idx !== i))}>
+                      Remove
+                    </button>
+                  )}
+                </div>
                 <div className="td-traveler-grid">
                   <div>
-                    <div className="td-input-label">Full Name</div>
+                    <div className="td-input-label">Name</div>
                     <input className="td-input" placeholder="Ram Sharma" value={t.name} onChange={e => setTraveler(i, 'name', e.target.value)} />
                   </div>
                   <div>
@@ -183,23 +193,60 @@ export default function TourDetail() {
               </div>
             ))}
 
-            <button className="td-btn-ghost" style={{ marginBottom: 20 }} onClick={() => setTravelers(prev => [...prev, { name: '', age: '', contact: '' }])}>
-              + Add Traveler
-            </button>
-
-            <div className="td-divider" />
+            {travelers.length < 6 && (
+              <button className="td-add-traveler" onClick={() => setTravelers(prev => [...prev, { name: '', age: '', contact: '' }])}>
+                + Add Traveler
+              </button>
+            )}
 
             <div className="td-points-row">
               <input type="checkbox" id="usePoints" checked={usePoints} onChange={e => setUsePoints(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#a8d96b' }} />
-              <label htmlFor="usePoints" className="td-points-label">Use loyalty points (if available)</label>
+              <label htmlFor="usePoints" className="td-points-label">Use loyalty points</label>
             </div>
 
             {msg.text && <div className={msg.type === 'ok' ? 'td-msg-ok' : 'td-msg-err'}>{msg.text}</div>}
 
-            <button className="td-btn" onClick={bookNow} disabled={booking} style={{ width: '100%', textAlign: 'center' }}>
+            <button className="td-btn" onClick={bookNow} disabled={booking}>
               {booking ? 'Processing...' : 'Proceed to Payment →'}
             </button>
+
+              {wishlistToast && (
+    <div className={`td-toast ${wishlistToastMsg.includes('Already') ? 'red' : 'green'}`}>
+      {wishlistToastMsg}
+    </div>
+  )}
+            <button className="td-btn-ghost" onClick={addWishlist}>Add to Wishlist</button>
           </div>
+        </div>
+
+        {/* Itinerary */}
+        <div className="td-full-card">
+          <div className="td-section-title">Day-wise Itinerary</div>
+          {(tour.itinerary || []).length === 0 ? (
+            <div style={{ fontSize: 14, color: 'rgba(240,237,232,0.35)' }}>No itinerary available for this tour yet.</div>
+          ) : (
+            <div className="td-itin">
+              {tour.itinerary.map((d, idx) => (
+                <div key={idx} className="td-itin-item">
+                  <div className="td-itin-day">Day {d.day}</div>
+                  <div>
+                    <div className="td-itin-title">{d.title}</div>
+                    <div className="td-itin-details">{d.details}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Map */}
+        <div className="td-full-card">
+          <div className="td-section-title">Location Map</div>
+          {!tour.latitude || !tour.longitude ? (
+            <div style={{ fontSize: 14, color: 'rgba(240,237,232,0.35)' }}>No map coordinates available.</div>
+          ) : (
+            <div id="td-map" style={{ height: 360, borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', position: 'relative', zIndex: 1 }} />
+          )}
         </div>
 
       </div>

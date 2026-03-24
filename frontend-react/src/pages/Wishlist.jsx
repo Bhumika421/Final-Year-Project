@@ -96,7 +96,7 @@ export default function Wishlist() {
                   <div className="wl-card-meta">{t.category} • {t.duration_days} days • ${Number(t.price_usd||0).toFixed(0)}</div>
                   <div className="wl-card-actions">
                     <Link className="wl-btn-view" to={`/tours/${t.tour_id || t.id}`}>View Tour</Link>
-                    <button className="wl-btn-remove" onClick={() => remove(t.id)}>✕</button>
+                   <button className="wl-btn-remove" onClick={() => remove(t.wishlist_id)}>✕</button>
                   </div>
                 </div>
               </div>

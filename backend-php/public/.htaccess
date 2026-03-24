@@ -1,6 +1,16 @@
 RewriteEngine On
 
-# If the request is not an existing file/folder, route to index.php
+# CORS headers for XAMPP
+Header always set Access-Control-Allow-Origin "http://localhost:5173"
+Header always set Access-Control-Allow-Credentials "true"
+Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+
+# Handle OPTIONS preflight
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=204,L]
+
+# Route all requests to index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L]

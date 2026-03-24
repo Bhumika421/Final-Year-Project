@@ -105,8 +105,8 @@ export default function Tours() {
         .tr-pill { font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.06); color: rgba(240,237,232,0.6); border-radius: 100px; padding: 3px 10px; }
         .tr-pill-green { background: rgba(168,217,107,0.12); color: #a8d96b; }
         .tr-card-bottom { display: flex; align-items: center; justify-content: space-between; }
-        .tr-price { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #a8d96b; }
-        .tr-price-sub { font-size: 11px; color: rgba(240,237,232,0.35); font-family: 'DM Sans', sans-serif; }
+        .tr-price { font-family: 'DM Sans', sans-serif; font-size: 18px; font-weight: 500; color: #a8d96b; letter-spacing: -0.02em; }
+        .tr-price-sub { font-size: 11px; color: rgba(240,237,232,0.4); font-family: 'DM Sans', sans-serif; margin-top: 2px; }
         .tr-view-btn { background: rgba(168,217,107,0.12); color: #a8d96b; border: 1px solid rgba(168,217,107,0.25); border-radius: 100px; padding: 8px 18px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; text-decoration: none; transition: background 0.2s; }
         .tr-view-btn:hover { background: rgba(168,217,107,0.22); }
         .tr-skeleton { background: linear-gradient(90deg, #131918 25%, #1a2218 50%, #131918 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 18px; height: 320px; }
