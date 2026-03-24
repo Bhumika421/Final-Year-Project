@@ -69,7 +69,6 @@ export default function Layout({ children }) {
     { to: '/wishlist',  label: 'Wishlist' },
     { to: '/notifications', label: 'Notifications' },
     ...(user?.role === 'admin'  ? [{ to: '/admin', label: 'Admin Panel' }] : []),
-    ...(user?.role === 'agency' ? [{ to: '/agency',  label: 'Agency Dashboard' }] : []),
   ];
 
   return (
