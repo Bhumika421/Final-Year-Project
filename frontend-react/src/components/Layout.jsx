@@ -63,7 +63,9 @@ export default function Layout({ children }) {
   ] : [];
 
   const ddLinks = [
-    { to: '/dashboard', label: 'Dashboard' },
+    user?.role === 'agency'
+      ? { to: '/agency', label: 'Agency Dashboard' }
+      : { to: '/dashboard', label: 'Dashboard' },
     { to: '/profile',   label: 'My Profile' },
     { to: '/bookings',  label: 'My Bookings' },
     { to: '/wishlist',  label: 'Wishlist' },
@@ -209,7 +211,7 @@ export default function Layout({ children }) {
             <Link key={l.to} className="nb-mobile-link" to={l.to} onClick={() => setMenuOpen(false)}>{l.label}</Link>
           ))}
           {user && <Link className="nb-mobile-link" to="/profile" onClick={() => setMenuOpen(false)}> My Profile</Link>}
-          {user && <Link className="nb-mobile-link" to="/dashboard" onClick={() => setMenuOpen(false)}> Dashboard</Link>}
+          {user && <Link className="nb-mobile-link" to={user.role === 'agency' ? '/agency' : '/dashboard'} onClick={() => setMenuOpen(false)}> Dashboard</Link>}
           {!user && <Link className="nb-mobile-link" to="/login" onClick={() => setMenuOpen(false)}>Log in</Link>}
           {!user && <Link className="nb-mobile-link" to="/signup" onClick={() => setMenuOpen(false)}>Sign up</Link>}
           {user && (

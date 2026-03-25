@@ -15,6 +15,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (user?.role === 'agency') { nav('/agency'); return; }
     if (!getToken()) { nav('/login'); return; }
     async function load() {
       try {
