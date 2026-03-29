@@ -56,21 +56,21 @@ export default function Layout({ children }) {
     { to: '/support', label: 'Support' },
   ];
 
-  const userLinks = user ? [
+  const userLinks = user && user.role === 'customer' ? [
     { to: '/bookings', label: 'My Bookings' },
     { to: '/wishlist', label: 'Wishlist' },
     { to: '/notifications', label: 'Notifications' },
   ] : [];
 
   const ddLinks = [
-    user?.role === 'agency'
-      ? { to: '/agency', label: 'Agency Dashboard' }
-      : { to: '/dashboard', label: 'Dashboard' },
-    { to: '/profile',   label: 'My Profile' },
-    { to: '/bookings',  label: 'My Bookings' },
-    { to: '/wishlist',  label: 'Wishlist' },
-    { to: '/notifications', label: 'Notifications' },
-    ...(user?.role === 'admin'  ? [{ to: '/admin', label: 'Admin Panel' }] : []),
+    { to: user?.role === 'agency' ? '/agency' : user?.role === 'admin' ? '/admin' : '/dashboard', label: 'Dashboard' },
+    { to: '/profile', label: 'My Profile' },
+    ...(user?.role === 'customer' ? [
+      { to: '/bookings', label: 'My Bookings' },
+      { to: '/wishlist', label: 'Wishlist' },
+      { to: '/notifications', label: 'Notifications' },
+    ] : []),
+    ...(user?.role === 'admin' ? [{ to: '/admin', label: 'Admin Panel' }] : []),
   ];
 
   return (

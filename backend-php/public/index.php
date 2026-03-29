@@ -15,6 +15,7 @@ require_once __DIR__ . '/../src/controllers/notifications_controller.php';
 require_once __DIR__ . '/../src/controllers/currency_controller.php';
 require_once __DIR__ . '/../src/controllers/admin_controller.php';
 
+require_once __DIR__ . '/../src/controllers/upload_controller.php';
 handle_cors();
 
 $router = new Router();
@@ -54,6 +55,10 @@ $router->add('DELETE', '/api/admin/tours/{id}',       function($params) { $admin
 
 // Tours (agency)
 $router->add('POST', '/api/agency/tours',      function() { $agency = require_agency(); tours_create($agency); });
+$router->add('POST', '/api/upload/images', function() {
+    $agency = require_agency();
+    upload_images();
+});
 $router->add('GET',  '/api/agency/tours',      function() { $agency = require_agency(); tours_list_my($agency); });
 $router->add('PUT',  '/api/agency/tours/{id}', function($params) { $agency = require_agency(); tours_update($params, $agency); });
 $router->add('DELETE', '/api/agency/tours/{id}', function($params) { $agency = require_agency(); tours_delete($params, $agency); });
@@ -84,6 +89,8 @@ $router->add('POST', '/api/admin/notifications/broadcast', function() { $admin =
 
 // Currency
 $router->add('GET', '/api/currency/convert', function() { currency_convert(); });
+
+
 
 // Dispatch
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';

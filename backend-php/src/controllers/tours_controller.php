@@ -20,8 +20,7 @@ function tours_list(): void {
   $minPrice = isset($_GET['minPrice']) ? (float)$_GET['minPrice'] : null;
   $maxPrice = isset($_GET['maxPrice']) ? (float)$_GET['maxPrice'] : null;
 
-  // Public list: only approved + active tours
-  $sql = "SELECT id,title,destination,category,duration_days,price_usd,rating,image_url,description,latitude,longitude
+  $sql = "SELECT id,title,destination,category,duration_days,price_usd,rating,image_url,images_json,description,latitude,longitude
           FROM tours WHERE is_active=1 AND approval_status='approved'";
   $params = [];
 
@@ -41,7 +40,7 @@ function tours_list(): void {
 
 function tours_list_my(array $agency): void {
   $stmt = db()->prepare(
-    "SELECT id,title,destination,category,duration_days,price_usd,rating,image_url,description,is_active,approval_status,rejection_reason,created_at
+    "SELECT id,title,destination,category,duration_days,price_usd,rating,image_url,images_json,description,is_active,approval_status,rejection_reason,created_at
      FROM tours WHERE agency_id=? ORDER BY created_at DESC"
   );
   $stmt->execute([(int)$agency['id']]);
@@ -55,6 +54,7 @@ function tours_get(array $params): void {
   $row = $stmt->fetch();
   if (!$row) json_response(['error'=>'Tour not found'], 404);
   $row['itinerary'] = $row['itinerary_json'] ? json_decode($row['itinerary_json'], true) : [];
+  $row['images'] = $row['images_json'] ? json_decode($row['images_json'], true) : [];
   unset($row['itinerary_json']);
   json_response(['ok'=>true,'tour'=>$row]);
 }
@@ -66,16 +66,15 @@ function tours_create(array $actor): void {
   $isAgency = (($actor['role'] ?? '') === 'agency');
   $agencyId = $isAgency ? (int)$actor['id'] : ($data['agency_id'] ?? null);
 
-  // Agency-submitted packages go to pending review.
   $approvalStatus = $isAgency ? 'pending' : 'approved';
   $isActive = $isAgency ? 0 : 1;
   $approvedBy = $isAgency ? null : (int)$actor['id'];
 
   $stmt = db()->prepare(
     "INSERT INTO tours (
-      title,destination,category,duration_days,price_usd,rating,image_url,description,itinerary_json,latitude,longitude,
+      title,destination,category,duration_days,price_usd,rating,image_url,images_json,description,itinerary_json,latitude,longitude,
       agency_id,approval_status,approved_by,approved_at,rejection_reason,is_active
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NULL,?)"
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NULL,?)"
   );
   $stmt->execute([
     trim((string)$data['title']),
@@ -85,6 +84,7 @@ function tours_create(array $actor): void {
     (float)$data['price_usd'],
     isset($data['rating']) ? (float)$data['rating'] : 4.5,
     $data['image_url'] ?? null,
+    $data['images_json'] ?? null,
     $data['description'] ?? null,
     json_encode($itinerary),
     $data['latitude'] ?? null,
@@ -107,7 +107,7 @@ function tours_update(array $params, array $actor): void {
 
   $fields = [];
   $vals = [];
-  $map = ['title','destination','category','duration_days','price_usd','rating','image_url','description','latitude','longitude','is_active'];
+  $map = ['title','destination','category','duration_days','price_usd','rating','image_url','images_json','description','latitude','longitude','is_active'];
   foreach ($map as $k) {
     if (array_key_exists($k, $data)) { $fields[] = "$k=?"; $vals[] = $data[$k]; }
   }
@@ -122,7 +122,6 @@ function tours_update(array $params, array $actor): void {
 
 function tours_delete(array $params, array $actor): void {
   $id = (int)$params['id'];
-  // prevent deletion if active bookings exist
   $stmt = db()->prepare("SELECT COUNT(*) c FROM bookings WHERE tour_id=? AND status IN ('pending','paid')");
   $stmt->execute([$id]);
   $c = (int)($stmt->fetch()['c'] ?? 0);

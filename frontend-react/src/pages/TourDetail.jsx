@@ -8,6 +8,43 @@ function toNPR(usd) {
   return 'NPR ' + new Intl.NumberFormat('en-NP').format(Math.round(Number(usd) * USD_TO_NPR));
 }
 
+// Image Slider Component
+function ImageSlider({ images, fallback }) {
+  const [current, setCurrent] = useState(0);
+  const allImages = images && images.length > 0 ? images : (fallback ? [fallback] : []);
+
+  if (allImages.length === 0) return (
+    <div style={{ width: '100%', height: 420, background: '#131918', borderRadius: 24 }} />
+  );
+
+  const prev = () => setCurrent(i => (i - 1 + allImages.length) % allImages.length);
+  const next = () => setCurrent(i => (i + 1) % allImages.length);
+
+  return (
+    <div className="td-slider">
+      <img className="td-slider-img" src={allImages[current]} alt={`Slide ${current + 1}`} />
+      <div className="td-hero-overlay" />
+
+      {allImages.length > 1 && (
+        <>
+          <button className="td-slider-btn td-slider-prev" onClick={prev}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button className="td-slider-btn td-slider-next" onClick={next}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <div className="td-slider-dots">
+            {allImages.map((_, i) => (
+              <button key={i} className={`td-slider-dot ${i === current ? 'active' : ''}`} onClick={() => setCurrent(i)} />
+            ))}
+          </div>
+          <div className="td-slider-count">{current + 1} / {allImages.length}</div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function TourDetail() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -17,7 +54,7 @@ export default function TourDetail() {
   const [usePoints, setUsePoints] = useState(false);
   const [booking, setBooking] = useState(false);
   const [wishlistToast, setWishlistToast] = useState(false);
-  const [wishlistToastMsg, setWishlistToastMsg] = useState(' Added to wishlist!');
+  const [wishlistToastMsg, setWishlistToastMsg] = useState('Added to wishlist!');
 
   useEffect(() => {
     api.get(`/api/tours/${id}`).then(res => setTour(res.data.tour)).catch(() => {});
@@ -25,8 +62,8 @@ export default function TourDetail() {
 
   useEffect(() => {
     if (!tour?.latitude || !tour?.longitude) return;
-    const map = L.map('td-map', { zoomControl: true }).setView([Number(tour.latitude), Number(tour.longitude)], 11);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+    const map = L.map('td-map', { zoomControl: true }).setView([Number(tour.latitude), Number(tour.longitude)], 13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
     L.marker([Number(tour.latitude), Number(tour.longitude)]).addTo(map).bindPopup(tour.destination);
     return () => map.remove();
   }, [tour]);
@@ -39,12 +76,12 @@ export default function TourDetail() {
     if (!getToken()) { setMsg({ text: 'Please login to add to wishlist.', type: 'err' }); return; }
     try {
       await api.post('/api/wishlist', { tour_id: Number(id) });
-      setWishlistToastMsg(' Added to wishlist!');
+      setWishlistToastMsg('Added to wishlist!');
       setWishlistToast(true);
       setTimeout(() => setWishlistToast(false), 3000);
     } catch (e) {
       if (e?.response?.status === 409) {
-        setWishlistToastMsg(' Already in your wishlist!');
+        setWishlistToastMsg('Already in your wishlist!');
         setWishlistToast(true);
         setTimeout(() => setWishlistToast(false), 3000);
       } else {
@@ -73,20 +110,35 @@ export default function TourDetail() {
     </div>
   );
 
+  // Parse images
+  const images = tour.images && Array.isArray(tour.images) ? tour.images :
+                 tour.images_json ? (() => { try { return JSON.parse(tour.images_json); } catch { return []; } })() : [];
+
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap');
         .td-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 24px 60px; font-family: 'DM Sans', sans-serif; }
-        .td-hero { position: relative; border-radius: 24px; overflow: hidden; margin-bottom: 28px; }
-        .td-hero-img { width: 100%; height: 420px; object-fit: cover; display: block; }
-        .td-hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(10,14,13,0.85) 0%, rgba(10,14,13,0.1) 60%); }
-        .td-hero-body { position: absolute; bottom: 0; left: 0; right: 0; padding: 32px; }
+
+        /* SLIDER */
+        .td-slider { position: relative; border-radius: 24px; overflow: hidden; margin-bottom: 28px; height: 520px; }
+        .td-slider-img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity 0.3s ease; }
+        .td-hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(10,14,13,0.85) 0%, rgba(10,14,13,0.1) 60%); pointer-events: none; }
+        .td-slider-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 50%; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s; z-index: 10; backdrop-filter: blur(8px); }
+        .td-slider-btn:hover { background: rgba(168,217,107,0.3); border-color: rgba(168,217,107,0.5); }
+        .td-slider-prev { left: 16px; }
+        .td-slider-next { right: 16px; }
+        .td-slider-dots { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 10; }
+        .td-slider-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.4); border: none; cursor: pointer; transition: all 0.2s; padding: 0; }
+        .td-slider-dot.active { background: #a8d96b; width: 20px; border-radius: 4px; }
+        .td-slider-count { position: absolute; top: 16px; right: 16px; background: rgba(0,0,0,0.45); color: #fff; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 100px; backdrop-filter: blur(8px); z-index: 10; }
+        .td-hero-body { position: absolute; bottom: 0; left: 0; right: 0; padding: 32px; z-index: 5; }
         .td-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #a8d96b; margin-bottom: 10px; }
         .td-title { font-family: 'Playfair Display', serif; font-size: clamp(26px, 4vw, 40px); font-weight: 700; color: #fff; margin: 0 0 14px; line-height: 1.2; }
         .td-meta { display: flex; flex-wrap: wrap; gap: 8px; }
         .td-pill { font-size: 12px; font-weight: 600; background: rgba(255,255,255,0.12); color: rgba(240,237,232,0.85); border-radius: 100px; padding: 4px 14px; backdrop-filter: blur(8px); }
         .td-pill-green { background: rgba(168,217,107,0.2); color: #a8d96b; }
+
         .td-main { display: grid; grid-template-columns: 1fr 340px; gap: 20px; margin-bottom: 20px; }
         .td-card { background: #131918; border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; padding: 28px; }
         .td-price { font-family: 'DM Sans', sans-serif; font-size: 36px; font-weight: 700; color: #a8d96b; letter-spacing: -0.02em; margin-bottom: 4px; }
@@ -125,17 +177,20 @@ export default function TourDetail() {
         .td-add-traveler { background: transparent; color: rgba(240,237,232,0.5); border: 1px dashed rgba(255,255,255,0.15); border-radius: 12px; padding: 12px; width: 100%; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; margin-bottom: 16px; }
         .td-add-traveler:hover { border-color: rgba(168,217,107,0.3); color: #a8d96b; }
         .td-remove-btn { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.2); color: #f87171; border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
-        @media (max-width: 768px) { .td-main { grid-template-columns: 1fr; } .td-traveler-grid { grid-template-columns: 1fr; } .td-hero-img { height: 280px; } }
+        @media (max-width: 768px) {
+          .td-main { grid-template-columns: 1fr; }
+          .td-traveler-grid { grid-template-columns: 1fr; }
+          .td-slider { height: 280px; }
+        }
       `}</style>
 
       <div className="td-wrap">
 
-        {/* Hero */}
-        <div className="td-hero">
-          <img className="td-hero-img" src={tour.image_url || `https://picsum.photos/seed/tour${id}/1200/800`} alt={tour.title} />
-          <div className="td-hero-overlay" />
+        {/* Hero Slider */}
+        <div style={{ position: 'relative' }}>
+          <ImageSlider images={images} fallback={tour.image_url || `https://picsum.photos/seed/tour${id}/1200/800`} />
           <div className="td-hero-body">
-            <div className="td-tag">🏔 Tour Details</div>
+            <div className="td-tag">Tour Details</div>
             <h1 className="td-title">{tour.title}</h1>
             <div className="td-meta">
               {tour.destination && <span className="td-pill">{tour.destination}</span>}
@@ -148,7 +203,6 @@ export default function TourDetail() {
 
         {/* Main 2-column */}
         <div className="td-main">
-
           {/* Left — Info */}
           <div className="td-card">
             <div className="td-price">{toNPR(tour.price_usd)}</div>
@@ -171,9 +225,7 @@ export default function TourDetail() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <div className="td-traveler-title">Traveler {i + 1}</div>
                   {i > 0 && (
-                    <button className="td-remove-btn" onClick={() => setTravelers(prev => prev.filter((_, idx) => idx !== i))}>
-                      Remove
-                    </button>
+                    <button className="td-remove-btn" onClick={() => setTravelers(prev => prev.filter((_, idx) => idx !== i))}>Remove</button>
                   )}
                 </div>
                 <div className="td-traveler-grid">
@@ -210,11 +262,11 @@ export default function TourDetail() {
               {booking ? 'Processing...' : 'Proceed to Payment →'}
             </button>
 
-              {wishlistToast && (
-    <div className={`td-toast ${wishlistToastMsg.includes('Already') ? 'red' : 'green'}`}>
-      {wishlistToastMsg}
-    </div>
-  )}
+            {wishlistToast && (
+              <div className={`td-toast ${wishlistToastMsg.includes('Already') ? 'red' : 'green'}`}>
+                {wishlistToastMsg}
+              </div>
+            )}
             <button className="td-btn-ghost" onClick={addWishlist}>Add to Wishlist</button>
           </div>
         </div>

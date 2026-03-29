@@ -1,0 +1,58 @@
+<?php
+declare(strict_types=1);
+
+function upload_images(): void {
+    $uploadDir = __DIR__ . '/../../public/uploads/';
+    
+    // Create uploads directory if it doesn't exist
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+
+    if (empty($_FILES['images'])) {
+        json_response(['error' => 'No images uploaded'], 422);
+        return;
+    }
+
+    $files = $_FILES['images'];
+    $urls = [];
+    $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    $maxSize = 5 * 1024 * 1024; // 5MB
+
+    // Handle single or multiple files
+    $count = is_array($files['name']) ? count($files['name']) : 1;
+
+    for ($i = 0; $i < $count; $i++) {
+        $name     = is_array($files['name'])     ? $files['name'][$i]     : $files['name'];
+        $tmp      = is_array($files['tmp_name']) ? $files['tmp_name'][$i] : $files['tmp_name'];
+        $type     = is_array($files['type'])     ? $files['type'][$i]     : $files['type'];
+        $size     = is_array($files['size'])     ? $files['size'][$i]     : $files['size'];
+        $error    = is_array($files['error'])    ? $files['error'][$i]    : $files['error'];
+
+        if ($error !== UPLOAD_ERR_OK) continue;
+        if (!in_array($type, $allowed)) {
+            json_response(['error' => 'Only JPG, PNG, WEBP, GIF allowed'], 422);
+            return;
+        }
+        if ($size > $maxSize) {
+            json_response(['error' => 'Each image must be under 5MB'], 422);
+            return;
+        }
+
+        $ext      = pathinfo($name, PATHINFO_EXTENSION);
+        $filename = uniqid('tour_', true) . '.' . strtolower($ext);
+        $dest     = $uploadDir . $filename;
+
+        if (move_uploaded_file($tmp, $dest)) {
+            // Return relative URL
+            $urls[] = '/uploads/' . $filename;
+        }
+    }
+
+    if (empty($urls)) {
+        json_response(['error' => 'Failed to upload images'], 500);
+        return;
+    }
+
+    json_response(['ok' => true, 'urls' => $urls]);
+}
