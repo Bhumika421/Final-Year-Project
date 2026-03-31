@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 
 function getUser() {
@@ -6,20 +7,20 @@ function getUser() {
 }
 
 const ICONS = {
-  dashboard: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
-  tours: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>,
-  bookings: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>,
+  dashboard: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+  tours: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 6 12 13"/></svg>,
+  bookings: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>,
   add: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
-  map: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>,
+  map: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 6 12 13"/></svg>,
   check: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
   clock: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-  bag: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>,
+  bag: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4M9 2h6M9 9h6M9 15h6"/></svg>,
   close: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-  img: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>,
+  img: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>,
   menu: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
-  pin: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>,
-  upload: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>,
-  trash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>,
+  pin: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+  upload: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>,
+  trash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>,
 };
 
 const categories = ["Adventure", "Cultural", "Wildlife", "Trekking", "Pilgrimage", "Family", "Luxury", "General"];
@@ -31,6 +32,7 @@ const EMPTY_FORM = {
 };
 
 export default function Agency() {
+  const nav = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [myTours, setMyTours] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -67,7 +69,16 @@ export default function Agency() {
 
   useEffect(() => {
     const token = localStorage.getItem('sjp_token');
-    if (token) load();
+    const user = getUser();
+    if (!token || !user) {
+      nav('/agency-login');
+      return;
+    }
+    if (user.role !== 'agency') {
+      nav('/dashboard');
+      return;
+    }
+    load();
   }, []);
 
   // Handle file selection
@@ -131,15 +142,19 @@ export default function Agency() {
       if (selectedFiles.length > 0) {
         const urls = await uploadImages();
         if (urls.length > 0) {
-          imageUrl = urls[0];
-          imagesJson = JSON.stringify(urls);
+          imageUrl = urls[0]; // First image as main image_url
+          imagesJson = JSON.stringify(urls); // All images as JSON array
         }
+      } else if (!imageUrl) {
+        setErr("Please provide an image (upload or URL)");
+        setSubmitting(false);
+        return;
       }
 
       await api.post("/api/agency/tours", {
         ...form,
         image_url: imageUrl,
-        images_json: imagesJson,
+        images_json: imagesJson, // Send all images as JSON
         latitude: form.latitude ? Number(form.latitude) : null,
         longitude: form.longitude ? Number(form.longitude) : null,
       });
@@ -201,6 +216,12 @@ export default function Agency() {
     { id: 'add',       label: 'Add Tour',  icon: ICONS.add },
   ];
 
+  function logout() {
+    localStorage.removeItem('sjp_token');
+    localStorage.removeItem('user');
+    nav('/agency-login');
+  }
+
   return (
     <>
       <style>{styles}</style>
@@ -236,6 +257,7 @@ export default function Agency() {
                 <div className="ag-sidebar-urole">Agency</div>
               </div>
             </div>
+            <button className="ag-logout-btn" onClick={logout}>Logout</button>
           </div>
         </aside>
 
@@ -521,7 +543,7 @@ export default function Agency() {
                   <div className="ag-form-section">Description</div>
                   <div className="ag-field">
                     <label>Description</label>
-                    <textarea className="ag-input ag-textarea" value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} placeholder="Describe your tour — highlights, inclusions, what makes it special..." />
+                    <textarea className="ag-input ag-textarea" value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} placeholder="Describe your tour — highlights, what to expect, etc." />
                   </div>
 
                   <div className="ag-form-actions">
@@ -544,14 +566,14 @@ export default function Agency() {
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
   .ag-root{display:flex;min-height:100vh;background:#080c0b;font-family:'DM Sans',sans-serif;color:#e8e4df;}
-  .ag-sidebar{width:236px;min-height:100vh;background:#0d1210;border-right:1px solid rgba(168,217,107,0.08);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:200;transition:transform 0.26s ease;}
+  .ag-sidebar{width:236px;min-height:100vh;background:#0d1210;border-right:1px solid rgba(168,217,107,0.08);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:200;transition:transform 0.3s;}
   .ag-sidebar-logo{display:flex;align-items:center;gap:12px;padding:22px 18px 18px;border-bottom:1px solid rgba(255,255,255,0.05);}
   .ag-logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#a8d96b,#5fa832);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#0a0e0d;flex-shrink:0;}
   .ag-logo-name{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:#fff;line-height:1.2;}
   .ag-logo-sub{font-size:10px;color:rgba(168,217,107,0.6);font-weight:500;letter-spacing:0.06em;text-transform:uppercase;}
   .ag-nav{flex:1;padding:18px 10px;display:flex;flex-direction:column;gap:2px;}
   .ag-nav-label{font-size:10px;font-weight:600;letter-spacing:0.14em;color:rgba(232,228,223,0.22);padding:0 10px;margin-bottom:6px;}
-  .ag-nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:rgba(232,228,223,0.5);font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;width:100%;text-align:left;transition:all 0.16s;position:relative;font-family:'DM Sans',sans-serif;}
+  .ag-nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:rgba(232,228,223,0.5);font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;position:relative;transition:all 0.2s;}
   .ag-nav-item:hover{background:rgba(255,255,255,0.05);color:#e8e4df;}
   .ag-nav-item.active{background:rgba(168,217,107,0.11);color:#a8d96b;font-weight:600;}
   .ag-nav-item.active::before{content:'';position:absolute;left:0;top:22%;bottom:22%;width:3px;background:#a8d96b;border-radius:0 3px 3px 0;}
@@ -562,16 +584,18 @@ const styles = `
   .ag-avatar-sm{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#a8d96b,#5fa832);color:#0a0e0d;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
   .ag-sidebar-uname{font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;}
   .ag-sidebar-urole{font-size:10px;color:#a8d96b;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;}
+  .ag-logout-btn{width:100%;padding:8px;border:1px solid rgba(168,217,107,0.2);border-radius:8px;background:transparent;color:#a8d96b;cursor:pointer;font-size:12px;font-weight:600;margin-top:8px;transition:all 0.2s;}
+  .ag-logout-btn:hover{background:rgba(168,217,107,0.1);}
   .ag-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:150;}
   .ag-main{flex:1;margin-left:236px;display:flex;flex-direction:column;min-height:100vh;}
-  .ag-topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid rgba(255,255,255,0.05);background:#080c0b;position:sticky;top:66px;z-index:100;gap:16px;}
+  .ag-topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid rgba(255,255,255,0.05);background:#080c0b;position:sticky;top:0;z-index:100;}
   .ag-topbar-left{display:flex;align-items:center;gap:14px;}
   .ag-topbar-right{display:flex;align-items:center;gap:10px;}
   .ag-page-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:#fff;margin:0 0 2px;}
   .ag-page-sub{font-size:12px;color:rgba(232,228,223,0.38);margin:0;}
   .ag-hamburger{display:none;background:none;border:none;color:rgba(232,228,223,0.6);cursor:pointer;padding:6px;border-radius:8px;}
-  .ag-avatar{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#a8d96b,#5fa832);color:#0a0e0d;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;}
-  .ag-add-btn{display:flex;align-items:center;gap:7px;background:#a8d96b;color:#0a0e0d;border:none;border-radius:100px;padding:9px 18px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.2s,transform 0.15s;}
+  .ag-avatar{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#a8d96b,#5fa832);color:#0a0e0d;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .ag-add-btn{display:flex;align-items:center;gap:7px;background:#a8d96b;color:#0a0e0d;border:none;border-radius:100px;padding:9px 18px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;}
   .ag-add-btn:hover{background:#c1e88d;transform:scale(1.03);}
   .ag-alert{padding:11px 18px;border-radius:10px;margin:14px 28px 0;font-size:13px;font-weight:500;}
   .ag-alert-err{background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.25);color:#f87171;}
@@ -588,7 +612,7 @@ const styles = `
   .ag-card{background:#0d1210;border:1px solid rgba(255,255,255,0.06);border-radius:18px;padding:20px;}
   .ag-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
   .ag-card-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:#fff;}
-  .ag-viewall{background:none;border:1px solid rgba(168,217,107,0.22);color:#a8d96b;font-size:11px;font-weight:600;padding:4px 12px;border-radius:100px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background 0.2s;}
+  .ag-viewall{background:none;border:1px solid rgba(168,217,107,0.22);color:#a8d96b;font-size:11px;font-weight:600;padding:4px 12px;border-radius:100px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
   .ag-viewall:hover{background:rgba(168,217,107,0.08);}
   .ag-mini-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
   .ag-mini-row:last-child{border-bottom:none;}
@@ -618,7 +642,7 @@ const styles = `
   .ag-tour-price{font-size:17px;font-weight:700;color:#a8d96b;font-family:'Playfair Display',serif;}
   .ag-rejection{font-size:11px;color:#f87171;margin-top:8px;background:rgba(248,113,113,0.07);padding:5px 9px;border-radius:7px;}
   .ag-bookings-table{background:#0d1210;border:1px solid rgba(255,255,255,0.06);border-radius:18px;overflow:hidden;}
-  .ag-table-head{display:grid;grid-template-columns:2fr 2fr 1fr 1fr;gap:14px;padding:12px 20px;background:rgba(168,217,107,0.04);border-bottom:1px solid rgba(255,255,255,0.06);font-size:10px;font-weight:600;color:rgba(232,228,223,0.28);text-transform:uppercase;letter-spacing:0.1em;}
+  .ag-table-head{display:grid;grid-template-columns:2fr 2fr 1fr 1fr;gap:14px;padding:12px 20px;background:rgba(168,217,107,0.04);border-bottom:1px solid rgba(255,255,255,0.06);font-size:10px;font-weight:700;color:rgba(232,228,223,0.45);text-transform:uppercase;letter-spacing:0.05em;}
   .ag-table-row{display:grid;grid-template-columns:2fr 2fr 1fr 1fr;gap:14px;padding:13px 20px;align-items:center;border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.14s;}
   .ag-table-row:last-child{border-bottom:none;}
   .ag-table-row:hover{background:rgba(255,255,255,0.02);}
@@ -633,15 +657,15 @@ const styles = `
   .ag-form-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:14px;}
   .ag-form-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:#fff;margin:0 0 5px;}
   .ag-form-sub{font-size:13px;color:rgba(232,228,223,0.35);margin:0;}
-  .ag-close-btn{background:rgba(255,255,255,0.05);border:none;color:rgba(232,228,223,0.45);width:30px;height:30px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.16s;}
+  .ag-close-btn{background:rgba(255,255,255,0.05);border:none;color:rgba(232,228,223,0.45);width:30px;height:30px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
   .ag-close-btn:hover{background:rgba(248,113,113,0.1);color:#f87171;}
   .ag-form{display:flex;flex-direction:column;gap:14px;}
-  .ag-form-section{font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:rgba(168,217,107,0.5);border-bottom:1px solid rgba(168,217,107,0.1);padding-bottom:7px;margin-top:4px;}
+  .ag-form-section{font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:rgba(168,217,107,0.5);border-bottom:1px solid rgba(168,217,107,0.1);padding-bottom:7px;margin-top:8px;}
   .ag-form-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   .ag-form-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
   .ag-field{display:flex;flex-direction:column;gap:6px;}
   .ag-field label{font-size:11px;font-weight:600;color:rgba(232,228,223,0.38);letter-spacing:0.05em;text-transform:uppercase;}
-  .ag-input{background:#080c0b;border:1px solid rgba(255,255,255,0.09);border-radius:10px;color:#e8e4df;font-family:'DM Sans',sans-serif;font-size:14px;padding:10px 14px;outline:none;transition:border-color 0.2s;width:100%;box-sizing:border-box;}
+  .ag-input{background:#080c0b;border:1px solid rgba(255,255,255,0.09);border-radius:10px;color:#e8e4df;font-family:'DM Sans',sans-serif;font-size:14px;padding:10px 14px;outline:none;transition:border-color 0.2s;}
   .ag-input:focus{border-color:rgba(168,217,107,0.4);}
   .ag-textarea{min-height:90px;resize:vertical;}
   select.ag-input{cursor:pointer;}
@@ -655,14 +679,14 @@ const styles = `
   .ag-preview-item{position:relative;border-radius:10px;overflow:hidden;aspect-ratio:1;}
   .ag-preview-img{width:100%;height:100%;object-fit:cover;display:block;}
   .ag-preview-main{position:absolute;bottom:6px;left:6px;background:#a8d96b;color:#0a0e0d;font-size:9px;font-weight:800;padding:2px 7px;border-radius:100px;text-transform:uppercase;}
-  .ag-preview-remove{position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);border:none;color:#f87171;border-radius:6px;padding:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s;}
+  .ag-preview-remove{position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);border:none;color:#f87171;border-radius:6px;padding:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
   .ag-preview-remove:hover{background:rgba(248,113,113,0.3);}
-  .ag-preview-add{border:2px dashed rgba(168,217,107,0.2);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;aspect-ratio:1;transition:border-color 0.2s;}
+  .ag-preview-add{border:2px dashed rgba(168,217,107,0.2);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;aspect-ratio:1;transition:all 0.2s;}
   .ag-preview-add:hover{border-color:rgba(168,217,107,0.4);}
   .ag-form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;}
-  .ag-cancel-btn{background:rgba(255,255,255,0.04);color:rgba(232,228,223,0.55);border:1px solid rgba(255,255,255,0.09);border-radius:100px;padding:10px 22px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.18s;}
+  .ag-cancel-btn{background:rgba(255,255,255,0.04);color:rgba(232,228,223,0.55);border:1px solid rgba(255,255,255,0.09);border-radius:100px;padding:10px 22px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;}
   .ag-cancel-btn:hover{background:rgba(255,255,255,0.08);color:#e8e4df;}
-  .ag-submit-btn{background:#a8d96b;color:#0a0e0d;border:none;border-radius:100px;padding:10px 26px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:background 0.2s,transform 0.15s;}
+  .ag-submit-btn{background:#a8d96b;color:#0a0e0d;border:none;border-radius:100px;padding:10px 26px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;}
   .ag-submit-btn:hover:not(:disabled){background:#c1e88d;transform:scale(1.03);}
   .ag-submit-btn:disabled{opacity:0.5;cursor:not-allowed;}
   .ag-skeleton{background:linear-gradient(90deg,#0d1210 25%,#131a18 50%,#0d1210 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:14px;height:60px;}

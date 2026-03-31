@@ -18,18 +18,20 @@ export default function Login() {
     try {
       const res = await api.post('/api/auth/login', { email, password, login_as: 'customer' });
 
-      // token fix — backend le kun naam le pathaunu ni handle garcha
       const token = res.data.token || res.data.access_token || res.data.jwt || res.data.data?.token;
+      const user  = res.data.user  || res.data.data?.user  || { email, role: 'customer' };
+
+      // Token save
       if (token) {
         saveToken(token);
         setAuthToken(token);
       }
-
-      const user = res.data.user || res.data.data?.user || { email, role: 'customer' };
       localStorage.setItem('user', JSON.stringify(user));
       window.dispatchEvent(new Event('auth-change'));
 
-      nav('/');
+      // Hard redirect — state race condition avoid garcha
+      window.location.href = '/dashboard';
+
     } catch (e) {
       setMsg(e?.response?.data?.error || e?.response?.data?.message || 'Login failed. Check your email and password.');
     } finally {
@@ -65,7 +67,7 @@ export default function Login() {
       `}</style>
 
       <div className="auth-wrap">
-        <div className="auth-box"> 
+        <div className="auth-box">
           <div className="auth-tag">👤 Customer Portal</div>
           <h1 className="auth-title">Welcome back</h1>
           <p className="auth-sub">Login to access your bookings, wishlist and dashboard.</p>
@@ -95,8 +97,8 @@ export default function Login() {
           <div className="auth-links">
             <Link className="auth-link" to="/signup">Create account →</Link>
             <div className="auth-small-links">
-              <Link className="auth-link" to="/agency-login">Agency</Link>
-              <Link className="auth-link" to="/admin-login">Admin</Link>
+              <Link className="auth-link" to="/agency-login">Agency login</Link>
+              <Link className="auth-link" to="/admin-login">Admin login</Link>
             </div>
           </div>
         </div>

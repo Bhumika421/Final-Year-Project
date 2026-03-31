@@ -1,27 +1,29 @@
-# Backend (PHP + MySQL) - Safe Journey Planner
+# Khalti php integration
 
-This is a lightweight REST API for the **Travel & Tour Management System (Safe Journey Planner)**.
+This is an initiate for easier implementation of khalti payment gateway for beginners in php.
 
-## Tech
-- PHP 8+ (XAMPP)
-- MySQL (phpMyAdmin)
-- Apache (mod_rewrite enabled)
+Please contribute for further more features.
 
-## Main URL (when placed in htdocs)
-Assuming you put the folder here:
-`C:\xampp\htdocs\safe-journey-planner\backend-php`
+## How to use it ?
 
-Then API base is:
-`http://localhost/safe-journey-planner/backend-php/public`
+1. Copy the file pay.php and khalti.png to your project folder
+2. change `$khalti_public_key` with your api public key.
+3. write code to get your product id, name , url and price
+4. change `$successRedirect` variable. When payment will be success, this url will be called.
+5. run your code to verify transaction after successful transaction, this can be used to update database or do more action on success. use `checkValid()` function for this.
+6. Don't forget to give a star to this repo.
+7. For contribution, please contact me https://samirk.com.np
 
-Example:
-- GET `http://localhost/safe-journey-planner/backend-php/public/api/health`
+## License
 
-## Files you must configure
-- `src/config/config.php` (DB and JWT secret)
+- It is free to use and mofify for any purpose. I don't take responsibility for misusage, you will be responsible for your action.
 
-## Demo admin
-- Email: `admin@demo.com`
-- Password: `Admin@12345`
+## Version
 
-(You can change the admin credentials in the database.)
+Currently, this system use khalti v2 api endpoints.
+
+## Resources
+
+- Endpoint Request/Response Docs: https://docs.khalti.com/checkout/diy-wallet/
+- Khalti merchant login: https://admin.khalti.com
+- Video Tutorial : https://youtu.be/HdhIk4qdnKU?si=-AQpPasvkZYjx2lF

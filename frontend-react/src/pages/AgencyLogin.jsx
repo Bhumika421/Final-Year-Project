@@ -16,17 +16,23 @@ export default function AgencyLogin() {
     setMsg('');
     try {
       const res = await api.post('/api/auth/login', { email, password, login_as: 'agency' });
-      saveToken(res.data.token);
-      setAuthToken(res.data.token);
 
-      // save user so navbar shows profile + Agency Dashboard link
-      const user = res.data.user || { email, role: 'agency' };
+      const token = res.data.token || res.data.access_token || res.data.data?.token;
+      const user  = res.data.user  || res.data.data?.user  || { email, role: 'agency' };
+
+      // Token save
+      if (token) {
+        saveToken(token);
+        setAuthToken(token);
+      }
       localStorage.setItem('user', JSON.stringify(user));
       window.dispatchEvent(new Event('auth-change'));
 
-      nav('/agency');
+      // Hard redirect — RequireAgency race condition avoid garcha
+      window.location.href = '/agency';
+
     } catch (e) {
-      setMsg(e?.response?.data?.error || 'Agency login failed');
+      setMsg(e?.response?.data?.error || 'Agency login failed. Check your email and password.');
     }
   }
 

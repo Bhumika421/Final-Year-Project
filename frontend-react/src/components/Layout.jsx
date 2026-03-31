@@ -5,7 +5,7 @@ function getUser() {
   try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; }
 }
 function getToken() {
-  return localStorage.getItem('sjp_token') || null; // ✅ sjp_token use gareko
+  return localStorage.getItem('sjp_token') || null;
 }
 
 export default function Layout({ children }) {
@@ -39,7 +39,7 @@ export default function Layout({ children }) {
   }, []);
 
   function logout() {
-    localStorage.removeItem('sjp_token'); // ✅ sjp_token
+    localStorage.removeItem('sjp_token');
     localStorage.removeItem('user');
     setUser(null);
     setProfileOpen(false);
@@ -49,6 +49,14 @@ export default function Layout({ children }) {
 
   const isHome = loc.pathname === '/';
   const close = () => setProfileOpen(false);
+
+  // Agency ra Admin ko lagi navbar/footer hide garnu — tiniharuko आफ्नै layout xa
+  const isAgencyPage = loc.pathname.startsWith('/agency');
+  const isAdminPage  = loc.pathname.startsWith('/admin') && loc.pathname !== '/admin-login' && loc.pathname !== '/admin-setup';
+
+  if (isAgencyPage || isAdminPage) {
+    return <>{children}</>;
+  }
 
   const navLinks = [
     { to: '/', label: 'Home' },
@@ -63,14 +71,13 @@ export default function Layout({ children }) {
   ] : [];
 
   const ddLinks = [
-    { to: user?.role === 'agency' ? '/agency' : user?.role === 'admin' ? '/admin' : '/dashboard', label: 'Dashboard' },
+    { to: '/dashboard', label: 'Dashboard' },
     { to: '/profile', label: 'My Profile' },
     ...(user?.role === 'customer' ? [
       { to: '/bookings', label: 'My Bookings' },
       { to: '/wishlist', label: 'Wishlist' },
       { to: '/notifications', label: 'Notifications' },
     ] : []),
-    ...(user?.role === 'admin' ? [{ to: '/admin', label: 'Admin Panel' }] : []),
   ];
 
   return (
@@ -85,7 +92,6 @@ export default function Layout({ children }) {
         .nb.scrolled { background: rgba(10,14,13,0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: 0 1px 0 rgba(255,255,255,0.07); }
         .nb-inner { max-width: 1200px; margin: 0 auto; height: 66px; display: flex; align-items: center; }
         .nb-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
-        .nb-logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, #a8d96b, #5fa832); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
         .nb-logo-text { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700; color: #fff; line-height: 1.1; }
         .nb-logo-sub { font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 400; color: rgba(240,237,232,0.45); letter-spacing: 0.06em; display: block; }
         .nb-spacer { flex: 1; }
@@ -148,16 +154,12 @@ export default function Layout({ children }) {
           <ul className="nb-links">
             {navLinks.map(l => (
               <li key={l.to}>
-                <Link to={l.to} className={loc.pathname === l.to ? 'active' : ''}>
-                  {l.label}
-                </Link>
+                <Link to={l.to} className={loc.pathname === l.to ? 'active' : ''}>{l.label}</Link>
               </li>
             ))}
             {user && userLinks.map(l => (
               <li key={l.to}>
-                <Link to={l.to} className={loc.pathname.startsWith(l.to) ? 'active' : ''}>
-                  {l.label}
-                </Link>
+                <Link to={l.to} className={loc.pathname.startsWith(l.to) ? 'active' : ''}>{l.label}</Link>
               </li>
             ))}
           </ul>
@@ -168,16 +170,14 @@ export default function Layout({ children }) {
                 <div className={`nb-avatar ${profileOpen ? 'open' : ''}`} onClick={() => setProfileOpen(o => !o)} title={user.name || 'Profile'}>
                   {(user.name || user.full_name || user.email || 'U')[0].toUpperCase()}
                 </div>
-
                 {profileOpen && (
                   <div className="nb-dropdown">
                     <div className="nb-dd-header">
                       <div className="nb-dd-name">{user.name || user.full_name || user.email}</div>
                       <div className="nb-dd-role">{user.role || 'Customer'}</div>
                     </div>
-
                     {ddLinks.map(l => (
-                      <Link key={l.to} className="nb-dd-item" to={l.to} onClick={close}>{l.icon} {l.label}</Link>
+                      <Link key={l.to} className="nb-dd-item" to={l.to} onClick={close}>{l.label}</Link>
                     ))}
                     <div className="nb-dd-sep" />
                     <button className="nb-dd-item danger" onClick={logout}>Log out</button>
@@ -190,7 +190,6 @@ export default function Layout({ children }) {
                 <Link className="nb-btn-solid" to="/signup">Sign up</Link>
               </>
             )}
-
             <button className="nb-hamburger" onClick={() => setMenuOpen(true)}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
@@ -210,12 +209,12 @@ export default function Layout({ children }) {
           {user && userLinks.map(l => (
             <Link key={l.to} className="nb-mobile-link" to={l.to} onClick={() => setMenuOpen(false)}>{l.label}</Link>
           ))}
-          {user && <Link className="nb-mobile-link" to="/profile" onClick={() => setMenuOpen(false)}> My Profile</Link>}
-          {user && <Link className="nb-mobile-link" to={user.role === 'agency' ? '/agency' : '/dashboard'} onClick={() => setMenuOpen(false)}> Dashboard</Link>}
+          {user && <Link className="nb-mobile-link" to="/profile" onClick={() => setMenuOpen(false)}>My Profile</Link>}
+          {user && <Link className="nb-mobile-link" to="/dashboard" onClick={() => setMenuOpen(false)}>Dashboard</Link>}
           {!user && <Link className="nb-mobile-link" to="/login" onClick={() => setMenuOpen(false)}>Log in</Link>}
           {!user && <Link className="nb-mobile-link" to="/signup" onClick={() => setMenuOpen(false)}>Sign up</Link>}
           {user && (
-            <button className="nb-mobile-link" style={{border:'none', color:'#f87171', cursor:'pointer', textAlign:'left', background:'rgba(248,113,113,0.07)', fontFamily:'inherit'}} onClick={() => { logout(); setMenuOpen(false); }}>
+            <button className="nb-mobile-link" style={{border:'none',color:'#f87171',cursor:'pointer',textAlign:'left',background:'rgba(248,113,113,0.07)',fontFamily:'inherit'}} onClick={() => { logout(); setMenuOpen(false); }}>
               Log out
             </button>
           )}
@@ -230,46 +229,37 @@ export default function Layout({ children }) {
       {/* FOOTER */}
       <footer className="nb-footer">
         <div className="nb-footer-inner">
-          <div className="nb-footer-brand">
+          <div>
             <div className="nb-footer-logo">
-              <div>
-                <div style={{fontFamily:'Playfair Display,serif',fontSize:15,fontWeight:700,color:'#fff'}}>Safe Journey</div>
-                <div style={{fontSize:10,color:'rgba(240,237,232,0.35)',letterSpacing:'0.06em'}}>Nepal Tours</div>
-              </div>
+              <div style={{fontFamily:'Playfair Display,serif',fontSize:15,fontWeight:700,color:'#fff'}}>Safe Journey</div>
             </div>
             <p className="nb-footer-desc">Nepal's most trusted tour platform. Explore verified tours from trusted agencies across the Himalayas.</p>
             <div className="nb-footer-badge">Nepal Tourism Platform</div>
           </div>
-
-          <div className="nb-footer-col">
+          <div>
             <div className="nb-footer-col-title">Explore</div>
             <Link className="nb-footer-link" to="/tours">Browse Tours</Link>
             <Link className="nb-footer-link" to="/tours">Trekking</Link>
-            <Link className="nb-footer-link" to="/tours">Safari</Link>
             <Link className="nb-footer-link" to="/tours">Pokhara</Link>
             <Link className="nb-footer-link" to="/tours">Everest Region</Link>
           </div>
-
-          <div className="nb-footer-col">
+          <div>
             <div className="nb-footer-col-title">Account</div>
             <Link className="nb-footer-link" to="/login">Log In</Link>
             <Link className="nb-footer-link" to="/signup">Sign Up</Link>
-            <Link className="nb-footer-link" to="/dashboard">Dashboard</Link>
             <Link className="nb-footer-link" to="/bookings">My Bookings</Link>
             <Link className="nb-footer-link" to="/wishlist">Wishlist</Link>
           </div>
-
-          <div className="nb-footer-col">
+          <div>
             <div className="nb-footer-col-title">Help</div>
             <Link className="nb-footer-link" to="/support">Support</Link>
             <Link className="nb-footer-link" to="/agency-signup">List as Agency</Link>
             <Link className="nb-footer-link" to="/notifications">Notifications</Link>
           </div>
         </div>
-
         <div className="nb-footer-bottom">
           <span className="nb-footer-bottom-text">© {new Date().getFullYear()} Safe Journey Planner · Made with ❤️ in Nepal</span>
-          <span className="nb-footer-bottom-brand">🏔 Safe Journey Nepal · Trusted Tour Platform</span>
+          <span className="nb-footer-bottom-brand">🏔 Safe Journey Nepal</span>
         </div>
       </footer>
     </>

@@ -69,6 +69,7 @@ function admin_tour_decide(array $params, array $admin): void {
   json_response(['ok'=>true]);
 }
 
+
 function admin_tours_list_all(): void {
   $stmt = db()->prepare(
     "SELECT t.id, t.title, t.destination, t.category, t.duration_days, t.price_usd, t.rating, t.image_url, t.is_active,

@@ -16,6 +16,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user?.role === 'agency') { nav('/agency'); return; }
+    if (user?.role === 'admin')  { nav('/admin');  return; }  
     if (!getToken()) { nav('/login'); return; }
     async function load() {
       try {

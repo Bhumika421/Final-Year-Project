@@ -17,15 +17,16 @@ function bookings_create(array $user): void {
   if (!$tour) json_response(['error'=>'Tour not found'], 404);
 
   $subtotal = (float)$tour['price_usd'] * count($travelers);
-
   $config = require __DIR__ . '/../config/config.php';
   $taxRate = (float)$config['app']['tax_rate'];
   $tax = round($subtotal * $taxRate, 2);
 
-  // simple discount using loyalty points (1 point = $0.10, max 20% of subtotal)
   $discount = 0.0;
   if (!empty($data['use_loyalty_points'])) {
-    $points = (int)$user['loyalty_points'];
+    $stmt2 = db()->prepare("SELECT loyalty_points FROM users WHERE id=? LIMIT 1");
+    $stmt2->execute([(int)$user['id']]);
+    $u = $stmt2->fetch();
+    $points = (int)($u['loyalty_points'] ?? 0);
     $maxDisc = $subtotal * 0.20;
     $discount = min($points * 0.10, $maxDisc);
     $discount = round($discount, 2);
@@ -41,7 +42,19 @@ function bookings_create(array $user): void {
     $subtotal, $tax, $discount, $total, 'pending', $code
   ]);
 
-  json_response(['ok'=>true, 'booking_id'=>(int)db()->lastInsertId(), 'booking_code'=>$code, 'total_usd'=>$total]);
+  $bookingId = (int)db()->lastInsertId();
+
+  // Notify agency about new booking
+  $stmt = db()->prepare("SELECT agency_id, title FROM tours WHERE id=? LIMIT 1");
+  $stmt->execute([$tourId]);
+  $tourRow = $stmt->fetch();
+  if ($tourRow && $tourRow['agency_id']) {
+    db()->prepare("INSERT INTO notifications (user_id,category,title,body) VALUES (?,?,?,?)")
+      ->execute([$tourRow['agency_id'], 'booking', 'New booking request!',
+        'A new booking has been made for "' . $tourRow['title'] . '". Booking code: ' . $code]);
+  }
+
+  json_response(['ok'=>true, 'booking_id'=>$bookingId, 'booking_code'=>$code, 'total_usd'=>$total]);
 }
 
 function bookings_list(array $user): void {
@@ -68,12 +81,58 @@ function bookings_get(array $params, array $user): void {
   $b['travelers'] = $b['travelers_json'] ? json_decode($b['travelers_json'], true) : [];
   unset($b['travelers_json']);
 
-  // day-wise itinerary: from tour itinerary_json
   $stmt = db()->prepare("SELECT itinerary_json FROM tours WHERE id=? LIMIT 1");
   $stmt->execute([(int)$b['tour_id']]);
   $t = $stmt->fetch();
   $b['itinerary'] = $t && $t['itinerary_json'] ? json_decode($t['itinerary_json'], true) : [];
   json_response(['ok'=>true,'booking'=>$b]);
+}
+
+function booking_confirm(array $params, array $agency): void {
+  $id = (int)$params['id'];
+
+  // Check booking belongs to agency's tour
+  $stmt = db()->prepare("SELECT b.*, t.title, t.agency_id FROM bookings b
+                         JOIN tours t ON t.id=b.tour_id
+                         WHERE b.id=? LIMIT 1");
+  $stmt->execute([$id]);
+  $b = $stmt->fetch();
+  if (!$b) json_response(['error'=>'Booking not found'], 404);
+  if ((int)$b['agency_id'] !== (int)$agency['id']) json_response(['error'=>'Forbidden'], 403);
+  if ($b['status'] === 'paid') json_response(['error'=>'Already paid — cannot change status'], 409);
+
+  db()->prepare("UPDATE bookings SET status='confirmed' WHERE id=?")->execute([$id]);
+
+  // Notify customer
+  db()->prepare("INSERT INTO notifications (user_id,category,title,body) VALUES (?,?,?,?)")
+    ->execute([$b['user_id'], 'booking', 'Booking Confirmed!',
+      'Your booking for "' . $b['title'] . '" (Code: ' . $b['booking_code'] . ') has been confirmed. Please proceed to payment.']);
+
+  json_response(['ok'=>true, 'message'=>'Booking confirmed']);
+}
+
+function booking_reject(array $params, array $agency): void {
+  $id = (int)$params['id'];
+  $data = read_json_body();
+  $reason = trim((string)($data['reason'] ?? 'Rejected by agency'));
+
+  $stmt = db()->prepare("SELECT b.*, t.title, t.agency_id FROM bookings b
+                         JOIN tours t ON t.id=b.tour_id
+                         WHERE b.id=? LIMIT 1");
+  $stmt->execute([$id]);
+  $b = $stmt->fetch();
+  if (!$b) json_response(['error'=>'Booking not found'], 404);
+  if ((int)$b['agency_id'] !== (int)$agency['id']) json_response(['error'=>'Forbidden'], 403);
+  if ($b['status'] === 'paid') json_response(['error'=>'Already paid — cannot reject'], 409);
+
+  db()->prepare("UPDATE bookings SET status='cancelled' WHERE id=?")->execute([$id]);
+
+  // Notify customer
+  db()->prepare("INSERT INTO notifications (user_id,category,title,body) VALUES (?,?,?,?)")
+    ->execute([$b['user_id'], 'booking', 'Booking Rejected',
+      'Sorry, your booking for "' . $b['title'] . '" (Code: ' . $b['booking_code'] . ') was rejected. Reason: ' . $reason]);
+
+  json_response(['ok'=>true, 'message'=>'Booking rejected']);
 }
 
 function payments_pay(array $user): void {
@@ -87,8 +146,8 @@ function payments_pay(array $user): void {
   $b = $stmt->fetch();
   if (!$b) json_response(['error'=>'Booking not found'], 404);
   if ($b['status'] === 'paid') json_response(['error'=>'Already paid'], 409);
+  if ($b['status'] === 'cancelled') json_response(['error'=>'Booking was rejected — cannot pay'], 409);
 
-  // Demo validation (real gateway integration is out of scope)
   if ($method === 'card') {
     require_fields($data, ['card_number','card_name','expiry','cvv']);
     $card = preg_replace('/\s+/', '', (string)$data['card_number']);
@@ -98,14 +157,11 @@ function payments_pay(array $user): void {
 
   $providerRef = random_code('PAY', 12);
 
-  // store payment
   $stmt = db()->prepare("INSERT INTO payments (booking_id,method,amount_usd,currency,provider_ref,status) VALUES (?,?,?,?,?,?)");
   $stmt->execute([$bookingId, $method, (float)$b['total_usd'], 'USD', $providerRef, 'success']);
 
-  // update booking
   db()->prepare("UPDATE bookings SET status='paid' WHERE id=?")->execute([$bookingId]);
 
-  // loyalty points: 1 point per $10
   $earned = (int)floor(((float)$b['total_usd']) / 10.0);
   $spentPoints = 0;
   if ((float)$b['discount_usd'] > 0) {
@@ -114,13 +170,22 @@ function payments_pay(array $user): void {
   db()->prepare("UPDATE users SET loyalty_points = GREATEST(loyalty_points - ?, 0) + ? WHERE id=?")
      ->execute([$spentPoints, $earned, (int)$user['id']]);
 
-  // notification
   db()->prepare("INSERT INTO notifications (user_id,category,title,body) VALUES (?,?,?,?)")
-     ->execute([(int)$user['id'], 'booking', 'Payment successful', 'Your booking ' . $b['booking_code'] . ' has been confirmed.']);
+     ->execute([(int)$user['id'], 'booking', 'Payment successful!',
+       'Your booking ' . $b['booking_code'] . ' has been paid. Thank you!']);
+
+  // Notify agency about payment
+  $stmt = db()->prepare("SELECT agency_id, title FROM tours WHERE id=? LIMIT 1");
+  $stmt->execute([(int)$b['tour_id']]);
+  $tourRow = $stmt->fetch();
+  if ($tourRow && $tourRow['agency_id']) {
+    db()->prepare("INSERT INTO notifications (user_id,category,title,body) VALUES (?,?,?,?)")
+      ->execute([$tourRow['agency_id'], 'booking', 'Payment received!',
+        'Booking ' . $b['booking_code'] . ' for "' . $tourRow['title'] . '" has been paid.']);
+  }
 
   json_response(['ok'=>true, 'provider_ref'=>$providerRef, 'earned_points'=>$earned]);
 }
-
 
 function bookings_list_admin(array $admin): void {
   $stmt = db()->query("SELECT b.*, u.full_name AS customer_name, u.email AS customer_email,

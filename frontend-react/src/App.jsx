@@ -6,7 +6,6 @@ import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
 import AgencySignup from './pages/AgencySignup.jsx';
 import AdminSetup from './pages/AdminSetup.jsx';
-
 import AdminLogin from './pages/AdminLogin.jsx';
 import AgencyLogin from './pages/AgencyLogin.jsx';
 
@@ -31,6 +30,7 @@ export default function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/home" element={<Home />} />
 
         <Route path="/tours" element={<Tours />} />
         <Route path="/tours/:id" element={<TourDetail />} />
@@ -39,6 +39,8 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/agency-signup" element={<AgencySignup />} />
         <Route path="/admin-setup" element={<AdminSetup />} />
+        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/agency-login" element={<AgencyLogin />} />
 
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile" element={<Profile />} />
@@ -48,16 +50,10 @@ export default function App() {
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/support" element={<Support />} />
 
-        <Route path="/admin-login" element={<AdminLogin />} />
-        <Route path="/agency-login" element={<AgencyLogin />} />
-
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="/agency" element={<RequireAgency><Agency /></RequireAgency>} />
+
         <Route path="*" element={<Home />} />
-
-         <Route path="/home" element={<Home />} />
-      <Route path="/agency" element={<Agency />} />
-
       </Routes>
     </Layout>
   );

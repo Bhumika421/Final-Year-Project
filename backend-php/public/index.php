@@ -75,7 +75,8 @@ $router->add('GET',  '/api/bookings/{id}',   function($params) { $user = require
 $router->add('GET',  '/api/admin/bookings',  function() { $admin = require_admin(); bookings_list_admin($admin); });
 $router->add('GET',  '/api/agency/bookings', function() { $agency = require_agency(); bookings_list_agency($agency); });
 $router->add('POST', '/api/payments/pay',    function() { $user = require_auth(); payments_pay($user); });
-
+$router->add('POST', '/api/agency/bookings/{id}/confirm', function($params) { $agency = require_agency(); booking_confirm($params, $agency); });
+$router->add('POST', '/api/agency/bookings/{id}/reject',  function($params) { $agency = require_agency(); booking_reject($params, $agency); });
 // Support
 $router->add('POST', '/api/support',                    function() { $user = null; try { $user = require_auth(); } catch (Throwable $e) {} support_create($user); });
 $router->add('GET',  '/api/support/my',                 function() { $user = require_auth(); support_my($user); });
