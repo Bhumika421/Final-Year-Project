@@ -242,7 +242,7 @@ export default function Agency() {
     return '#94a3b8';
   }
 
-  if (user && user.verification_status && user.verification_status !== 'verified') {
+  if (user && user.verification_status && user.verification_status !== 'verified' && user.verification_status !== null) {
     return (
       <>
         <style>{styles}</style>

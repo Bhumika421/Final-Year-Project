@@ -6,7 +6,7 @@ require_once __DIR__ . '/../utils.php';
 
 function admin_agencies_pending(): void {
   $stmt = db()->prepare(
-    "SELECT id, full_name, email, phone, business_name, license_no, verification_status, created_at
+    "SELECT id, full_name, email, business_name, license_no, verification_status, created_at
      FROM users WHERE role='agency' AND verification_status='pending' ORDER BY created_at DESC"
   );
   $stmt->execute();

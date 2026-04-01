@@ -26,7 +26,7 @@ import RequireAdmin from './components/RequireAdmin.jsx';
 import RequireAgency from './components/RequireAgency.jsx';
 
 
-import { PaymentSuccess } from './KhaltiPayment.jsx';
+
 
 export default function App() {
   return (
@@ -53,7 +53,7 @@ export default function App() {
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/support" element={<Support />} />
 
-        <Route path="/payment-success" element={<PaymentSuccess />} />
+        
 
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="/agency" element={<RequireAgency><Agency /></RequireAgency>} />
