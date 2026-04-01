@@ -5,6 +5,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 const NPR_RATE = 133;
 const RATES = { NPR: 133, USD: 1, EUR: 0.92, INR: 83.5, GBP: 0.79 };
 
+// ✅ Tero pay.php ko URL — production ma change gara
+const KHALTI_BACKEND = 'http://localhost/pay.php';
+
 function formatNPR(usd) {
   return 'NPR ' + new Intl.NumberFormat('en-NP').format(Math.round(Number(usd) * NPR_RATE));
 }
@@ -74,19 +77,98 @@ export default function Payment() {
     }
   }
 
+  // ── Initial load
   useEffect(() => { load(); }, [bookingId]);
 
+ 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const pidx = params.get('pidx');
+    const status = params.get('status');
+
+    if (!pidx) return;
+
+    if (status === 'User canceled') {
+      setErr('Khalti payment cancel gariyो।');
+      window.history.replaceState({}, '', `/payment/${bookingId}`);
+      return;
+    }
+
+    // Verify payment with backend
+    (async () => {
+      setPaying(true);
+      try {
+        const verifyRes = await fetch(KHALTI_BACKEND, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'verify', pidx }),
+        });
+        const verifyData = await verifyRes.json();
+
+        if (verifyData.success) {
+          
+          try {
+            const markRes = await api.post('/api/payments/pay', {
+              booking_id: Number(bookingId),
+              method: 'khalti',
+              pidx: pidx,
+            });
+            setEarnedPoints(markRes.data.earned_points || 0);
+          } catch (_) {
+            // already marked paid — ignore
+          }
+          setPaid(true);
+          await load();
+          window.history.replaceState({}, '', `/payment/${bookingId}`);
+        } else {
+          setErr(`Payment verify bhayena: ${verifyData.status || 'Unknown error'}`);
+          window.history.replaceState({}, '', `/payment/${bookingId}`);
+        }
+      } catch (e) {
+        setErr('Khalti verification ma error aayo.');
+      } finally {
+        setPaying(false);
+      }
+    })();
+  }, []); // runs once on mount
+
+  // ── Pay handler
   async function pay() {
     setErr(''); setPaying(true);
     try {
-      const payload = { booking_id: Number(bookingId), method, ...card };
-      const res = await api.post('/api/payments/pay', payload);
-      setEarnedPoints(res.data.earned_points || 0);
-      setPaid(true);
-      await load();
+      if (method === 'khalti') {
+        // ✅ REAL KHALTI — PHP backend call
+        const res = await fetch(KHALTI_BACKEND, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'initiate',
+            amount: Math.round(Number(booking?.total_usd) * NPR_RATE),
+            product_name: booking?.title || 'Tour Booking',
+            product_id: String(bookingId),
+            return_url: window.location.origin + `/payment/${bookingId}`,
+            website_url: window.location.origin,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.href = data.payment_url;
+        } else {
+          setErr('Khalti initiate garna sakiena. Dobara try gara.');
+          console.error(data.error);
+          setPaying(false);
+        }
+      } else {
+        // eSewa / Card — existing simulated flow
+        const payload = { booking_id: Number(bookingId), method, ...card };
+        const res = await api.post('/api/payments/pay', payload);
+        setEarnedPoints(res.data.earned_points || 0);
+        setPaid(true);
+        await load();
+        setPaying(false);
+      }
     } catch (e) {
       setErr(e?.response?.data?.error || 'Payment failed. Please try again.');
-    } finally {
       setPaying(false);
     }
   }
@@ -94,6 +176,12 @@ export default function Payment() {
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', fontFamily: 'DM Sans, sans-serif', color: 'rgba(168,217,107,0.7)', fontSize: 15, letterSpacing: '0.05em' }}>
       Loading...
+    </div>
+  );
+
+  if (paying && !booking) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', fontFamily: 'DM Sans, sans-serif', color: 'rgba(168,217,107,0.7)', fontSize: 15, letterSpacing: '0.05em' }}>
+      Verifying payment...
     </div>
   );
 
@@ -166,7 +254,6 @@ export default function Payment() {
 
                 <div className="p-tour-dest">{booking?.destination}</div>
 
-                {/* Travelers */}
                 {booking?.travelers?.length > 0 && (
                   <div className="p-travelers">
                     <div className="p-travelers-label">Travelers ({booking.travelers.length})</div>
@@ -184,7 +271,6 @@ export default function Payment() {
 
                 <div className="p-divider" />
 
-                {/* Price rows */}
                 <div className="p-price-rows">
                   <div className="p-price-row">
                     <span>Subtotal</span>
@@ -207,7 +293,6 @@ export default function Payment() {
                   <span className="p-total-amount">{formatNPR(booking?.total_usd)}</span>
                 </div>
 
-                {/* Currency Converter */}
                 <button className="p-converter-btn" onClick={() => setShowConverter(v => !v)}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
                   {showConverter ? 'Hide' : 'Convert'} Currency
@@ -235,7 +320,6 @@ export default function Payment() {
               <div className="p-card">
                 <div className="p-card-label">Payment Method</div>
 
-                {/* Method selector */}
                 <div className="p-methods">
                   {methods.map(m => (
                     <button key={m.id}
@@ -252,7 +336,6 @@ export default function Payment() {
                   ))}
                 </div>
 
-                {/* Method body */}
                 <div className="p-method-body" style={{ borderColor: activeMethod?.border, background: activeMethod?.bg }}>
                   {(method === 'khalti' || method === 'esewa') && (
                     <div className="p-wallet-info">
@@ -262,12 +345,18 @@ export default function Payment() {
                       </div>
                       <div className="p-wallet-desc">
                         {method === 'khalti'
-                          ? 'Nepal\'s leading digital payment platform. Fast, secure & trusted by millions.'
-                          : 'Nepal\'s most popular mobile wallet. Instant & hassle-free payments.'}
+                          ? "Nepal's leading digital payment platform. Fast, secure & trusted by millions."
+                          : "Nepal's most popular mobile wallet. Instant & hassle-free payments."}
                       </div>
-                      <div className="p-wallet-note">
-                        Simulated for demo — no real transaction will occur
-                      </div>
+                      {method === 'khalti' && (
+                        <div className="p-khalti-badge">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                          Redirects to official Khalti page
+                        </div>
+                      )}
+                      {method === 'esewa' && (
+                        <div className="p-wallet-note">Simulated for demo — no real transaction will occur</div>
+                      )}
                     </div>
                   )}
 
@@ -317,7 +406,9 @@ export default function Payment() {
                 <button className="p-pay-btn" onClick={pay} disabled={paying}
                   style={{ background: paying ? 'rgba(168,217,107,0.5)' : '#a8d96b' }}>
                   {paying ? (
-                    <span className="p-pay-loading">Processing...</span>
+                    <span className="p-pay-loading">
+                      {method === 'khalti' ? 'Redirecting to Khalti...' : 'Processing...'}
+                    </span>
                   ) : (
                     <>
                       <span>Pay {formatNPR(booking?.total_usd)}</span>
@@ -345,28 +436,23 @@ const css = `
 
   .p-wrap { max-width: 1060px; margin: 0 auto; padding: 48px 24px 80px; font-family: 'DM Sans', sans-serif; color: #e8e4df; }
 
-  /* HEADER */
   .p-header { text-align: center; margin-bottom: 44px; }
   .p-header-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(168,217,107,0.7); margin-bottom: 12px; }
   .p-header-title { font-family: 'Playfair Display', serif; font-size: clamp(28px, 4vw, 42px); font-weight: 700; color: #fff; margin: 0 0 10px; line-height: 1.15; }
   .p-header-code { font-size: 13px; color: rgba(232,228,223,0.3); letter-spacing: 0.08em; font-weight: 500; }
 
-  /* GRID */
   .p-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
   .p-col { display: flex; flex-direction: column; gap: 0; }
 
-  /* CARD */
   .p-card { background: #0d1210; border: 1px solid rgba(255,255,255,0.07); border-radius: 22px; padding: 26px; }
   .p-card-label { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(168,217,107,0.5); margin-bottom: 20px; }
 
-  /* TOUR IMAGE */
   .p-tour-img-wrap { position: relative; border-radius: 14px; overflow: hidden; margin-bottom: 14px; }
   .p-tour-img { width: 100%; height: 155px; object-fit: cover; display: block; }
   .p-tour-img-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(8,12,11,0.85) 0%, transparent 60%); }
   .p-tour-img-title { position: absolute; bottom: 12px; left: 14px; right: 14px; font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; color: #fff; line-height: 1.3; }
   .p-tour-dest { font-size: 12px; color: rgba(232,228,223,0.38); margin-bottom: 16px; letter-spacing: 0.03em; }
 
-  /* TRAVELERS */
   .p-travelers { margin-bottom: 16px; }
   .p-travelers-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232,228,223,0.25); margin-bottom: 10px; }
   .p-traveler-item { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
@@ -376,7 +462,6 @@ const css = `
 
   .p-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 16px 0; }
 
-  /* PRICE */
   .p-price-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
   .p-price-row { display: flex; justify-content: space-between; font-size: 13px; color: rgba(232,228,223,0.45); }
   .p-price-green { color: #a8d96b; }
@@ -384,7 +469,6 @@ const css = `
   .p-total-row span:first-child { font-size: 13px; font-weight: 600; color: rgba(232,228,223,0.5); text-transform: uppercase; letter-spacing: 0.06em; }
   .p-total-amount { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: #a8d96b; }
 
-  /* CONVERTER */
   .p-converter-btn { display: flex; align-items: center; gap: 7px; background: none; border: 1px solid rgba(168,217,107,0.15); color: rgba(168,217,107,0.5); font-size: 12px; font-weight: 600; padding: 7px 16px; border-radius: 100px; cursor: pointer; font-family: 'DM Sans', sans-serif; margin-top: 16px; transition: all 0.2s; width: 100%; justify-content: center; }
   .p-converter-btn:hover { border-color: rgba(168,217,107,0.35); color: #a8d96b; }
   .p-converter { background: rgba(168,217,107,0.04); border: 1px solid rgba(168,217,107,0.1); border-radius: 14px; padding: 16px; margin-top: 10px; animation: fadeIn 0.2s ease; }
@@ -397,7 +481,6 @@ const css = `
   .p-converter-amount { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; color: #a8d96b; }
   .p-converter-note { font-size: 10px; color: rgba(232,228,223,0.2); letter-spacing: 0.03em; }
 
-  /* PAYMENT METHODS */
   .p-methods { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 18px; }
   .p-method { position: relative; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.18s; }
   .p-method:hover { border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); }
@@ -405,15 +488,14 @@ const css = `
   .p-method-logo { display: flex; align-items: center; justify-content: center; }
   .p-method-check { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 
-  /* METHOD BODY */
   .p-method-body { border: 1px solid; border-radius: 16px; padding: 20px; margin-bottom: 20px; transition: all 0.2s; }
   .p-wallet-info { text-align: center; }
   .p-wallet-logo { display: flex; justify-content: center; margin-bottom: 14px; }
   .p-wallet-name { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; margin-bottom: 8px; }
   .p-wallet-desc { font-size: 13px; color: rgba(232,228,223,0.45); line-height: 1.65; margin-bottom: 12px; }
   .p-wallet-note { font-size: 11px; color: rgba(232,228,223,0.22); font-style: italic; }
+  .p-khalti-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.25); color: rgba(167,139,250,0.8); font-size: 11px; font-weight: 600; padding: 5px 14px; border-radius: 100px; }
 
-  /* CARD FORM */
   .p-card-form { display: flex; flex-direction: column; gap: 14px; }
   .p-field { display: flex; flex-direction: column; gap: 6px; }
   .p-field label { font-size: 10px; font-weight: 700; color: rgba(232,228,223,0.35); letter-spacing: 0.08em; text-transform: uppercase; }
@@ -422,17 +504,14 @@ const css = `
   .p-input:focus { border-color: rgba(168,217,107,0.45); }
   .p-card-note { font-size: 11px; color: rgba(232,228,223,0.2); text-align: center; font-style: italic; }
 
-  /* ERROR */
   .p-err { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); color: #f87171; padding: 11px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 14px; }
 
-  /* PAY BUTTON */
   .p-pay-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; color: #0a0e0d; border: none; border-radius: 100px; padding: 15px; font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform 0.15s, filter 0.2s; margin-bottom: 12px; letter-spacing: 0.01em; }
   .p-pay-btn:hover:not(:disabled) { filter: brightness(1.08); transform: scale(1.02); }
   .p-pay-btn:disabled { cursor: not-allowed; }
   .p-pay-loading { opacity: 0.7; }
   .p-secure { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; color: rgba(232,228,223,0.22); letter-spacing: 0.03em; }
 
-  /* SUCCESS */
   .p-success { max-width: 500px; margin: 0 auto; text-align: center; background: #0d1210; border: 1px solid rgba(168,217,107,0.12); border-radius: 24px; padding: 44px 36px; animation: fadeIn 0.4s ease; }
   .p-success-ring { width: 80px; height: 80px; border-radius: 50%; background: rgba(168,217,107,0.1); border: 2px solid rgba(168,217,107,0.25); display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; }
   .p-success-title { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: #fff; margin: 0 0 10px; }
