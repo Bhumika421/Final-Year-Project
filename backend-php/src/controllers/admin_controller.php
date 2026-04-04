@@ -12,6 +12,14 @@ function admin_agencies_pending(): void {
   $stmt->execute();
   json_response(['ok'=>true,'items'=>$stmt->fetchAll()]);
 }
+function admin_users_list(): void {
+  $stmt = db()->prepare(
+    "SELECT id, full_name, email, role, verification_status, business_name, is_active, created_at
+     FROM users ORDER BY created_at DESC"
+  );
+  $stmt->execute();
+  json_response(['ok'=>true,'items'=>$stmt->fetchAll()]);
+}
 
 function admin_agency_verify(array $params): void {
   $agencyId = (int)$params['id'];
@@ -72,8 +80,10 @@ function admin_tour_decide(array $params, array $admin): void {
 
 function admin_tours_list_all(): void {
   $stmt = db()->prepare(
-    "SELECT t.id, t.title, t.destination, t.category, t.duration_days, t.price_usd, t.rating, t.image_url, t.is_active,
-            t.approval_status, t.created_at,
+    "SELECT t.id, t.title, t.destination, t.category, t.duration_days, t.price_usd, t.rating,
+            t.image_url, t.images_json, t.description, t.itinerary_json,
+            t.latitude, t.longitude, t.is_active, t.approval_status,
+            t.rejection_reason, t.created_at,
             u.business_name
      FROM tours t
      LEFT JOIN users u ON u.id=t.agency_id
@@ -81,4 +91,20 @@ function admin_tours_list_all(): void {
   );
   $stmt->execute();
   json_response(['ok'=>true,'items'=>$stmt->fetchAll()]);
+}
+
+function admin_user_update(array $params): void {
+  $id = (int)$params['id'];
+  $data = read_json_body();
+  
+  $fields = []; $vals = [];
+  $allowed = ['full_name','email','role','verification_status','business_name','license_no','is_active'];
+  foreach ($allowed as $k) {
+    if (array_key_exists($k, $data)) { $fields[] = "$k=?"; $vals[] = $data[$k]; }
+  }
+  if (!$fields) json_response(['error'=>'Nothing to update'], 422);
+  
+  $vals[] = $id;
+  db()->prepare("UPDATE users SET ".implode(',',$fields)." WHERE id=?")->execute($vals);
+  json_response(['ok'=>true]);
 }

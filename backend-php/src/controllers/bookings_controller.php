@@ -218,3 +218,41 @@ function bookings_list_agency(array $agency): void {
   }
   json_response(['ok'=>true,'items'=>$items]);
 }
+function bookings_delete(array $params, array $user): void {
+  $id = (int)$params['id'];
+
+  // Booking exists ra user ko nai ho check
+  $stmt = db()->prepare("SELECT * FROM bookings WHERE id=? AND user_id=? LIMIT 1");
+  $stmt->execute([$id, (int)$user['id']]);
+  $b = $stmt->fetch();
+  if (!$b) json_response(['error'=>'Booking not found'], 404);
+
+  // Paid booking delete garna nadinne (optional — hatauна milxa)
+  if ($b['status'] === 'paid') json_response(['error'=>'Paid booking cannot be deleted'], 409);
+
+  db()->prepare("DELETE FROM bookings WHERE id=?")->execute([$id]);
+
+  json_response(['ok'=>true, 'message'=>'Booking deleted']);
+}
+
+function bookings_update(array $params, array $user): void {
+  $id = (int)$params['id'];
+  $data = read_json_body();
+
+  // Booking exists ra user ko nai ho check
+  $stmt = db()->prepare("SELECT * FROM bookings WHERE id=? AND user_id=? LIMIT 1");
+  $stmt->execute([$id, (int)$user['id']]);
+  $b = $stmt->fetch();
+  if (!$b) json_response(['error'=>'Booking not found'], 404);
+
+  // Travelers update
+  if (!empty($data['travelers']) && is_array($data['travelers'])) {
+    $travelers = $data['travelers'];
+    if (count($travelers) < 1) json_response(['error'=>'At least 1 traveler required'], 422);
+
+    db()->prepare("UPDATE bookings SET travelers_json=? WHERE id=?")
+      ->execute([json_encode($travelers), $id]);
+  }
+
+  json_response(['ok'=>true, 'message'=>'Booking updated']);
+}

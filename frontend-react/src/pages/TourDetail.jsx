@@ -55,6 +55,7 @@ export default function TourDetail() {
   const [booking, setBooking] = useState(false);
   const [wishlistToast, setWishlistToast] = useState(false);
   const [wishlistToastMsg, setWishlistToastMsg] = useState('Added to wishlist!');
+  const [fieldErrors, setFieldErrors] = useState([]);
 
   useEffect(() => {
     api.get(`/api/tours/${id}`).then(res => setTour(res.data.tour)).catch(() => {});
@@ -70,6 +71,12 @@ export default function TourDetail() {
 
   function setTraveler(i, k, v) {
     setTravelers(prev => prev.map((t, idx) => idx === i ? { ...t, [k]: v } : t));
+    // Clear field error on change
+    setFieldErrors(prev => {
+      const updated = [...prev];
+      if (updated[i]) updated[i] = { ...updated[i], [k]: '' };
+      return updated;
+    });
   }
 
   async function addWishlist() {
@@ -93,6 +100,42 @@ export default function TourDetail() {
   async function bookNow() {
     setMsg({ text: '', type: '' });
     if (!getToken()) { setMsg({ text: 'Please login to book.', type: 'err' }); return; }
+
+    // ✅ VALIDATION
+    let hasError = false;
+    const errors = travelers.map((t, i) => {
+      const err = { name: '', contact: '' };
+      const num = i + 1;
+
+      if (!t.name || !t.name.trim()) {
+        err.name = `Full name is required.`;
+        if (!hasError) {
+          setMsg({ text: `Traveler ${num}: Please enter full name.`, type: 'err' });
+          hasError = true;
+        }
+      }
+
+      const contact = (t.contact || '').replace(/\s/g, '');
+      if (!contact) {
+        err.contact = `Contact number is required.`;
+        if (!hasError) {
+          setMsg({ text: `Traveler ${num}: Please enter contact number.`, type: 'err' });
+          hasError = true;
+        }
+      } else if (!/^\d{10}$/.test(contact)) {
+        err.contact = `Please enter a valid 10-digit number.`;
+        if (!hasError) {
+          setMsg({ text: `Traveler ${num}: Please enter a valid 10-digit number (e.g. 98XXXXXXXX).`, type: 'err' });
+          hasError = true;
+        }
+      }
+
+      return err;
+    });
+
+    setFieldErrors(errors);
+    if (hasError) return;
+
     setBooking(true);
     try {
       const res = await api.post('/api/bookings', { tour_id: Number(id), travelers, use_loyalty_points: usePoints });
@@ -139,7 +182,7 @@ export default function TourDetail() {
         .td-pill { font-size: 12px; font-weight: 600; background: rgba(255,255,255,0.12); color: rgba(240,237,232,0.85); border-radius: 100px; padding: 4px 14px; backdrop-filter: blur(8px); }
         .td-pill-green { background: rgba(168,217,107,0.2); color: #a8d96b; }
 
-        .td-main { display: grid; grid-template-columns: 1fr 340px; gap: 20px; margin-bottom: 20px; }
+        .td-main { display: grid; grid-template-columns: 1fr 370px; gap: 20px; margin-bottom: 20px; }
         .td-card { background: #131918; border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; padding: 28px; }
         .td-price { font-family: 'DM Sans', sans-serif; font-size: 36px; font-weight: 700; color: #a8d96b; letter-spacing: -0.02em; margin-bottom: 4px; }
         .td-price-sub { font-size: 13px; color: rgba(240,237,232,0.4); margin-bottom: 20px; }
@@ -158,6 +201,8 @@ export default function TourDetail() {
         .td-points-label { font-size: 13px; color: rgba(240,237,232,0.5); }
         .td-msg-ok { background: rgba(168,217,107,0.1); border: 1px solid rgba(168,217,107,0.2); color: #a8d96b; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; }
         .td-msg-err { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.15); color: #f87171; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; }
+        .td-field-err { color: #f87171; font-size: 11px; margin-top: 4px; font-weight: 500; }
+        .td-input-error { border-color: rgba(248,113,113,0.5) !important; }
         .td-toast { position: fixed; top: 80px; right: 24px; border-radius: 12px; padding: 12px 20px; font-size: 13px; font-weight: 600; z-index: 9999; box-shadow: 0 8px 32px rgba(0,0,0,0.4); animation: toastIn 0.5s ease; }
         .td-toast.green { background: #1a2e1a; border: 1px solid rgba(168,217,107,0.4); color: #a8d96b; }
         .td-toast.red { background: #2e1a1a; border: 1px solid rgba(248,113,113,0.4); color: #f87171; }
@@ -170,9 +215,9 @@ export default function TourDetail() {
         .td-itin-details { font-size: 13px; color: rgba(240,237,232,0.5); line-height: 1.5; }
         .td-traveler { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 18px; margin-bottom: 12px; }
         .td-traveler-title { font-size: 12px; font-weight: 700; color: #a8d96b; letter-spacing: 0.08em; text-transform: uppercase; margin: 0; }
-        .td-traveler-grid { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 12px; }
+        .td-traveler-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
         .td-input-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(240,237,232,0.35); margin-bottom: 5px; }
-        .td-input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 12px; color: #f0ede8; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; box-sizing: border-box; }
+        .td-input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 16px; color: #f0ede8; font-family: 'DM Sans', sans-serif; font-size: 15px; outline: none; transition: border-color 0.2s; box-sizing: border-box; }
         .td-input:focus { border-color: rgba(168,217,107,0.4); }
         .td-add-traveler { background: transparent; color: rgba(240,237,232,0.5); border: 1px dashed rgba(255,255,255,0.15); border-radius: 12px; padding: 12px; width: 100%; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; margin-bottom: 16px; }
         .td-add-traveler:hover { border-color: rgba(168,217,107,0.3); color: #a8d96b; }
@@ -229,18 +274,43 @@ export default function TourDetail() {
                   )}
                 </div>
                 <div className="td-traveler-grid">
+
+                  {/* NAME */}
                   <div>
                     <div className="td-input-label">Name</div>
-                    <input className="td-input" placeholder="Ram Sharma" value={t.name} onChange={e => setTraveler(i, 'name', e.target.value)} />
+                    <input
+                      className={`td-input ${fieldErrors[i]?.name ? 'td-input-error' : ''}`}
+                      placeholder="Ram Sharma"
+                      value={t.name}
+                      onChange={e => setTraveler(i, 'name', e.target.value)}
+                    />
+                    {fieldErrors[i]?.name && <div className="td-field-err">⚠ {fieldErrors[i].name}</div>}
                   </div>
+
+                  {/* AGE */}
                   <div>
                     <div className="td-input-label">Age</div>
-                    <input className="td-input" placeholder="25" value={t.age} onChange={e => setTraveler(i, 'age', e.target.value)} />
+                    <input
+                      className="td-input"
+                      placeholder="25"
+                      value={t.age}
+                      onChange={e => setTraveler(i, 'age', e.target.value.replace(/\D/g, '').slice(0, 3))}
+                    />
                   </div>
+
+                  {/* CONTACT */}
                   <div>
                     <div className="td-input-label">Contact</div>
-                    <input className="td-input" placeholder="98XXXXXXXX" value={t.contact} onChange={e => setTraveler(i, 'contact', e.target.value)} />
+                    <input
+                      className={`td-input ${fieldErrors[i]?.contact ? 'td-input-error' : ''}`}
+                      placeholder="98XXXXXXXX"
+                      value={t.contact}
+                      maxLength={10}
+                      onChange={e => setTraveler(i, 'contact', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    />
+                    {fieldErrors[i]?.contact && <div className="td-field-err">⚠ {fieldErrors[i].contact}</div>}
                   </div>
+
                 </div>
               </div>
             ))}
@@ -259,7 +329,7 @@ export default function TourDetail() {
             {msg.text && <div className={msg.type === 'ok' ? 'td-msg-ok' : 'td-msg-err'}>{msg.text}</div>}
 
             <button className="td-btn" onClick={bookNow} disabled={booking}>
-              {booking ? 'Processing...' : 'Proceed to Payment →'}
+              {booking ? 'Processing...' : 'Book Now →'}
             </button>
 
             {wishlistToast && (

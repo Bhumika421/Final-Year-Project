@@ -21,6 +21,7 @@ const ICONS = {
   pin: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>,
   upload: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>,
   trash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>,
+  edit: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
   bell: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>,
   home: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
 };
@@ -28,6 +29,7 @@ const ICONS = {
 const categories = ["Adventure", "Cultural", "Wildlife", "Trekking", "Pilgrimage", "Family", "Luxury", "General"];
 const EMPTY_FORM = { title: "", destination: "", category: "Adventure", duration_days: 3, price_usd: 199, image_url: "", description: "", latitude: "", longitude: "" };
 
+// ─── NOTIFICATION BELL ───────────────────────────────────────────────────────
 function NotificationBell() {
   const [notifs, setNotifs] = useState([]);
   const [open, setOpen] = useState(false);
@@ -37,40 +39,23 @@ function NotificationBell() {
 
   async function fetchNotifs() {
     setLoading(true);
-    try {
-      const res = await api.get('/api/notifications');
-      setNotifs(res.data.items || []);
-    } catch { }
+    try { const res = await api.get('/api/notifications'); setNotifs(res.data.items || []); } catch {}
     finally { setLoading(false); }
   }
-
   async function markRead(id) {
-    try {
-      await api.post(`/api/notifications/${id}/read`);
-      setNotifs(prev => prev.map(n => n.id === id ? { ...n, is_read: 1 } : n));
-    } catch { }
+    try { await api.post(`/api/notifications/${id}/read`); setNotifs(prev => prev.map(n => n.id === id ? { ...n, is_read: 1 } : n)); } catch {}
   }
-
   async function markAllRead() {
     const ids = notifs.filter(n => !n.is_read).map(n => n.id);
     await Promise.all(ids.map(id => api.post(`/api/notifications/${id}/read`)));
     setNotifs(prev => prev.map(n => ({ ...n, is_read: 1 })));
   }
-
+  useEffect(() => { fetchNotifs(); const iv = setInterval(fetchNotifs, 30000); return () => clearInterval(iv); }, []);
   useEffect(() => {
-    fetchNotifs();
-    const iv = setInterval(fetchNotifs, 30000);
-    return () => clearInterval(iv);
-  }, []);
-
-  useEffect(() => {
-    function handler(e) {
-      if (dropRef.current && !dropRef.current.contains(e.target)) setOpen(false);
-    }
+    function handler(e) { if (dropRef.current && !dropRef.current.contains(e.target)) setOpen(false); }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
   function timeAgo(d) {
     const diff = Math.floor((Date.now() - new Date(d)) / 1000);
     if (diff < 60) return 'Just now';
@@ -78,7 +63,6 @@ function NotificationBell() {
     if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
     return `${Math.floor(diff/86400)}d ago`;
   }
-
   return (
     <div ref={dropRef} style={{position:'relative'}}>
       <button className="ag-bell-btn" onClick={() => { setOpen(v => !v); if (!open) fetchNotifs(); }}>
@@ -112,6 +96,175 @@ function NotificationBell() {
   );
 }
 
+// ─── REJECT MODAL ─────────────────────────────────────────────────────────────
+function RejectModal({ booking, onClose, onConfirm }) {
+  const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function submit() {
+    setLoading(true);
+    await onConfirm(booking.id, reason || 'Rejected by agency');
+    setLoading(false);
+  }
+
+  return (
+    <div className="ag-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{
+        background: '#0d1210', border: '1px solid rgba(248,113,113,0.2)',
+        borderRadius: 18, padding: 28, width: '100%', maxWidth: 420,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: '#fff' }}>
+            Reject Booking?
+          </div>
+          <button className="ag-close-btn" onClick={onClose}>{ICONS.close}</button>
+        </div>
+
+        <div style={{ fontSize: 13, color: 'rgba(232,228,223,0.45)', marginBottom: 16, lineHeight: 1.6 }}>
+        </div>
+
+        <div className="ag-field" style={{ marginBottom: 20 }}>
+          <label>Reason (optional)</label>
+          <textarea
+            className="ag-input ag-textarea"
+            style={{ minHeight: 80 }}
+            placeholder="e.g. Tour full, dates unavailable, capacity reached..."
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="ag-cancel-btn" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
+          <button
+            onClick={submit}
+            disabled={loading}
+            style={{
+              flex: 1, background: loading ? 'rgba(248,113,113,0.4)' : '#ef4444',
+              border: 'none', borderRadius: 100, padding: '10px 22px',
+              color: '#fff', fontSize: 13, fontWeight: 700,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            {loading ? 'Rejecting...' : '✕ Reject Booking'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── EDIT TOUR MODAL ──────────────────────────────────────────────────────────
+function EditModal({ tour, onClose, onSaved, setErr }) {
+  const [form, setForm] = useState({
+    title: tour.title || '',
+    destination: tour.destination || '',
+    category: tour.category || 'Adventure',
+    duration_days: tour.duration_days || 3,
+    price_usd: tour.price_usd || 199,
+    image_url: tour.image_url || '',
+    description: tour.description || '',
+    latitude: tour.latitude || '',
+    longitude: tour.longitude || '',
+  });
+  const [itinerary, setItinerary] = useState(() => {
+    if (Array.isArray(tour.itinerary) && tour.itinerary.length > 0) return tour.itinerary;
+    try { const p = JSON.parse(tour.itinerary_json || '[]'); return p.length > 0 ? p : [{ day: 1, title: '', details: '' }]; }
+    catch { return [{ day: 1, title: '', details: '' }]; }
+  });
+  const [saving, setSaving] = useState(false);
+
+  function updateItin(i, k, v) {
+    setItinerary(prev => prev.map((d, idx) => idx === i ? { ...d, [k]: v } : d));
+  }
+  function addDay() {
+    setItinerary(prev => [...prev, { day: prev.length + 1, title: '', details: '' }]);
+  }
+  function removeDay(i) {
+    setItinerary(prev => prev.filter((_, idx) => idx !== i).map((d, idx) => ({ ...d, day: idx + 1 })));
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      await api.put(`/api/agency/tours/${tour.id}`, {
+        ...form,
+        duration_days: Number(form.duration_days),
+        price_usd: Number(form.price_usd),
+        latitude: form.latitude ? Number(form.latitude) : null,
+        longitude: form.longitude ? Number(form.longitude) : null,
+        itinerary,
+      });
+      onSaved();
+      onClose();
+    } catch (e) {
+      setErr(e?.response?.data?.error || 'Update failed');
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="ag-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="ag-modal">
+        <div className="ag-modal-head">
+          <div>
+            <h2 className="ag-form-title">Edit Tour</h2>
+            <p className="ag-form-sub">Changes will go to admin for re-review</p>
+          </div>
+          <button className="ag-close-btn" onClick={onClose}>{ICONS.close}</button>
+        </div>
+
+        <div className="ag-modal-body">
+          <div className="ag-form-section">Basic Info</div>
+          <div className="ag-form-row2">
+            <div className="ag-field"><label>Tour Title *</label><input className="ag-input" value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} /></div>
+            <div className="ag-field"><label>Destination *</label><input className="ag-input" value={form.destination} onChange={e => setForm(f => ({...f, destination: e.target.value}))} /></div>
+          </div>
+          <div className="ag-form-section">Details</div>
+          <div className="ag-form-row3">
+            <div className="ag-field"><label>Category</label><select className="ag-input" value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))}>{categories.map(c => <option key={c}>{c}</option>)}</select></div>
+            <div className="ag-field"><label>Duration (days)</label><input className="ag-input" type="number" min="1" value={form.duration_days} onChange={e => setForm(f => ({...f, duration_days: e.target.value}))} /></div>
+            <div className="ag-field"><label>Price (USD)</label><input className="ag-input" type="number" min="0" step="0.01" value={form.price_usd} onChange={e => setForm(f => ({...f, price_usd: e.target.value}))} /></div>
+          </div>
+          <div className="ag-form-section">Location</div>
+          <div className="ag-form-row2">
+            <div className="ag-field"><label>Latitude</label><input className="ag-input" type="number" step="any" value={form.latitude} onChange={e => setForm(f => ({...f, latitude: e.target.value}))} placeholder="e.g. 27.9881" /></div>
+            <div className="ag-field"><label>Longitude</label><input className="ag-input" type="number" step="any" value={form.longitude} onChange={e => setForm(f => ({...f, longitude: e.target.value}))} placeholder="e.g. 86.9250" /></div>
+          </div>
+          <div className="ag-form-section">Image</div>
+          <div className="ag-field"><label>Image URL</label><input className="ag-input" value={form.image_url} onChange={e => setForm(f => ({...f, image_url: e.target.value}))} placeholder="https://..." /></div>
+          <div className="ag-form-section">Description</div>
+          <div className="ag-field"><textarea className="ag-input ag-textarea" value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} placeholder="Describe your tour..." /></div>
+          <div className="ag-form-section">Day-wise Itinerary</div>
+          <div style={{display:'flex', flexDirection:'column', gap:10}}>
+            {itinerary.map((day, i) => (
+              <div key={i} className="ag-itin-row">
+                <div className="ag-itin-day-badge">Day {day.day}</div>
+                <div style={{flex:1, display:'flex', flexDirection:'column', gap:6}}>
+                  <input className="ag-input" placeholder={`Day ${day.day} title`} value={day.title} onChange={e => updateItin(i, 'title', e.target.value)} />
+                  <textarea className="ag-input" style={{minHeight:60, resize:'vertical'}} placeholder="Details about this day..." value={day.details} onChange={e => updateItin(i, 'details', e.target.value)} />
+                </div>
+                {itinerary.length > 1 && (
+                  <button className="ag-itin-remove" onClick={() => removeDay(i)}>{ICONS.trash}</button>
+                )}
+              </div>
+            ))}
+            <button className="ag-itin-add" onClick={addDay}>+ Add Day</button>
+          </div>
+        </div>
+
+        <div className="ag-modal-footer">
+          <button className="ag-cancel-btn" onClick={onClose}>Cancel</button>
+          <button className="ag-submit-btn" onClick={save} disabled={saving}>
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function Agency() {
   const nav = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -123,12 +276,23 @@ export default function Agency() {
   const [successMsg, setSuccessMsg] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
+  const [editingTour, setEditingTour] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  // ✅ Reject modal state
+  const [rejectModal, setRejectModal] = useState({ open: false, booking: null });
+
   const user = getUser();
   const [form, setForm] = useState(EMPTY_FORM);
+  const [itinerary, setItinerary] = useState([{ day: 1, title: '', details: '' }]);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+
+  function updateItin(i, k, v) { setItinerary(prev => prev.map((d, idx) => idx === i ? { ...d, [k]: v } : d)); }
+  function addItinDay() { setItinerary(prev => [...prev, { day: prev.length + 1, title: '', details: '' }]); }
+  function removeItinDay(i) { setItinerary(prev => prev.filter((_, idx) => idx !== i).map((d, idx) => ({ ...d, day: idx + 1 }))); }
 
   async function load() {
     setErr("");
@@ -152,6 +316,18 @@ export default function Agency() {
     load();
   }, []);
 
+  async function deleteTour(id) {
+    if (!window.confirm('Are you sure you want to delete this tour?')) return;
+    setActionLoading(id + '-delete');
+    try {
+      await api.delete(`/api/agency/tours/${id}`);
+      setSuccessMsg("Tour deleted successfully.");
+      setTimeout(() => setSuccessMsg(""), 4000);
+      await load();
+    } catch (e) { setErr(e?.response?.data?.error || "Failed to delete tour"); }
+    finally { setActionLoading(null); }
+  }
+
   async function confirmBooking(id) {
     setActionLoading(id + '-confirm');
     try {
@@ -163,8 +339,14 @@ export default function Agency() {
     finally { setActionLoading(null); }
   }
 
-  async function rejectBooking(id) {
-    const reason = prompt("Rejection reason (optional):") ?? "Rejected by agency";
+  // ✅ Reject — modal open garne (prompt() hatayo)
+  function rejectBooking(booking) {
+    setRejectModal({ open: true, booking });
+  }
+
+  // ✅ Actual reject API call
+  async function confirmReject(id, reason) {
+    setRejectModal({ open: false, booking: null });
     setActionLoading(id + '-reject');
     try {
       await api.post(`/api/agency/bookings/${id}/reject`, { reason });
@@ -186,12 +368,10 @@ export default function Agency() {
       reader.readAsDataURL(file);
     });
   }
-
   function removeImage(index) {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
     setPreviews(prev => prev.filter((_, i) => i !== index));
   }
-
   async function uploadImages() {
     if (!selectedFiles.length) return [];
     setUploading(true);
@@ -209,12 +389,24 @@ export default function Agency() {
     setErr(""); setSubmitting(true);
     try {
       let imageUrl = form.image_url;
+      let imagesJson = null;
       if (selectedFiles.length > 0) {
         const urls = await uploadImages();
-        if (urls.length > 0) imageUrl = urls[0];
+        if (urls.length > 0) {
+          imageUrl = urls[0];
+          imagesJson = JSON.stringify(urls);
+        }
       }
-      await api.post("/api/agency/tours", { ...form, image_url: imageUrl, latitude: form.latitude ? Number(form.latitude) : null, longitude: form.longitude ? Number(form.longitude) : null });
+      await api.post("/api/agency/tours", {
+        ...form,
+        image_url: imageUrl,
+        images_json: imagesJson,
+        itinerary: itinerary,
+        latitude: form.latitude ? Number(form.latitude) : null,
+        longitude: form.longitude ? Number(form.longitude) : null,
+      });
       setForm(EMPTY_FORM); setSelectedFiles([]); setPreviews([]);
+      setItinerary([{ day: 1, title: '', details: '' }]);
       setSuccessMsg("Tour submitted for admin review!");
       setTimeout(() => setSuccessMsg(""), 4000);
       setActiveTab('tours');
@@ -227,6 +419,7 @@ export default function Agency() {
   const pendingCount    = myTours.filter(t => t.approval_status === 'pending').length;
   const rejectedCount   = myTours.filter(t => t.approval_status === 'rejected').length;
   const pendingBookings = bookings.filter(b => b.status === 'pending').length;
+  const filteredTours   = filterStatus === 'all' ? myTours : myTours.filter(t => t.approval_status === filterStatus);
 
   function statusColor(s) {
     if (s === 'approved') return '#a8d96b';
@@ -242,7 +435,7 @@ export default function Agency() {
     return '#94a3b8';
   }
 
-  if (user && user.verification_status && user.verification_status !== 'verified' && user.verification_status !== null) {
+  if (user && user.verification_status && user.verification_status !== 'verified') {
     return (
       <>
         <style>{styles}</style>
@@ -275,6 +468,26 @@ export default function Agency() {
   return (
     <>
       <style>{styles}</style>
+
+      {/* ✅ Reject Modal */}
+      {rejectModal.open && (
+        <RejectModal
+          booking={rejectModal.booking}
+          onClose={() => setRejectModal({ open: false, booking: null })}
+          onConfirm={confirmReject}
+        />
+      )}
+
+      {/* Edit Tour Modal */}
+      {editingTour && (
+        <EditModal
+          tour={editingTour}
+          onClose={() => setEditingTour(null)}
+          onSaved={() => { setSuccessMsg("Tour updated successfully!"); setTimeout(() => setSuccessMsg(""), 4000); load(); }}
+          setErr={setErr}
+        />
+      )}
+
       <div className="ag-root">
         <aside className={`ag-sidebar ${sidebarOpen ? 'open' : ''}`}>
           <div className="ag-sidebar-logo">
@@ -334,6 +547,7 @@ export default function Agency() {
           {err && <div className="ag-alert ag-alert-err">{err}</div>}
           {successMsg && <div className="ag-alert ag-alert-ok">&#10003; {successMsg}</div>}
 
+          {/* DASHBOARD TAB */}
           {activeTab === 'dashboard' && (
             <div className="ag-content">
               <div className="ag-stats">
@@ -392,19 +606,22 @@ export default function Agency() {
             </div>
           )}
 
+          {/* TOURS TAB */}
           {activeTab === 'tours' && (
             <div className="ag-content">
               <div className="ag-filter-row">
                 {[
-                  { key: 'all', label: `All (${myTours.length})` },
+                  { key: 'all',      label: `All (${myTours.length})` },
                   { key: 'approved', label: `Approved (${approvedCount})` },
-                  { key: 'pending', label: `Pending (${pendingCount})` },
+                  { key: 'pending',  label: `Pending (${pendingCount})` },
                   { key: 'rejected', label: `Rejected (${rejectedCount})` },
-                ].map(f => <span key={f.key} className="ag-filter-btn">{f.label}</span>)}
+                ].map(f => (
+                  <button key={f.key} className={`ag-filter-btn ${filterStatus === f.key ? 'active' : ''}`} onClick={() => setFilterStatus(f.key)}>{f.label}</button>
+                ))}
               </div>
               {loading ? (
                 <div className="ag-tours-grid">{[1,2,3].map(i => <div key={i} className="ag-skeleton" style={{height:220}} />)}</div>
-              ) : myTours.length === 0 ? (
+              ) : filteredTours.length === 0 ? (
                 <div className="ag-empty-full">
                   <div className="ag-empty-icon">{ICONS.map}</div>
                   <h3>No tours yet</h3>
@@ -413,7 +630,7 @@ export default function Agency() {
                 </div>
               ) : (
                 <div className="ag-tours-grid">
-                  {myTours.map(t => (
+                  {filteredTours.map(t => (
                     <div key={t.id} className="ag-tour-card">
                       <div className="ag-tour-img-wrap">
                         {t.image_url ? <img className="ag-tour-img" src={t.image_url} alt={t.title} /> : <div className="ag-tour-img-ph">{ICONS.img}</div>}
@@ -429,6 +646,14 @@ export default function Agency() {
                         {t.approval_status === 'rejected' && t.rejection_reason && (
                           <div className="ag-rejection">{t.rejection_reason}</div>
                         )}
+                        <div className="ag-tour-actions">
+                          <button className="ag-edit-btn" onClick={() => setEditingTour(t)} disabled={actionLoading === t.id + '-delete'}>
+                            {ICONS.edit} Edit
+                          </button>
+                          <button className="ag-delete-btn" onClick={() => deleteTour(t.id)} disabled={actionLoading === t.id + '-delete'}>
+                            {actionLoading === t.id + '-delete' ? '...' : <>{ICONS.trash} Delete</>}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -437,6 +662,7 @@ export default function Agency() {
             </div>
           )}
 
+          {/* BOOKINGS TAB */}
           {activeTab === 'bookings' && (
             <div className="ag-content">
               {loading ? [1,2,3].map(i => <div key={i} className="ag-skeleton" style={{marginBottom:10}} />) :
@@ -470,7 +696,8 @@ export default function Agency() {
                       <button className="ag-confirm-btn" onClick={() => confirmBooking(b.id)} disabled={actionLoading === b.id+'-confirm'}>
                         {actionLoading === b.id+'-confirm' ? 'Confirming...' : '✓ Confirm'}
                       </button>
-                      <button className="ag-reject-btn" onClick={() => rejectBooking(b.id)} disabled={actionLoading === b.id+'-reject'}>
+                      {/* ✅ Custom reject modal — prompt() hatayo */}
+                      <button className="ag-reject-btn" onClick={() => rejectBooking(b)} disabled={actionLoading === b.id+'-reject'}>
                         {actionLoading === b.id+'-reject' ? 'Rejecting...' : '✕ Reject'}
                       </button>
                     </div>
@@ -483,6 +710,7 @@ export default function Agency() {
             </div>
           )}
 
+          {/* ADD TOUR TAB */}
           {activeTab === 'add' && (
             <div className="ag-content">
               <div className="ag-form-card">
@@ -536,6 +764,22 @@ export default function Agency() {
                   <div className="ag-field"><label>Or paste Image URL</label><input className="ag-input" value={form.image_url} onChange={e => setForm(f => ({...f, image_url: e.target.value}))} placeholder="https://..." /></div>
                   <div className="ag-form-section">Description</div>
                   <div className="ag-field"><label>Description</label><textarea className="ag-input ag-textarea" value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} placeholder="Describe your tour..." /></div>
+                  <div className="ag-form-section">Day-wise Itinerary</div>
+                  <div style={{display:'flex', flexDirection:'column', gap:10}}>
+                    {itinerary.map((day, i) => (
+                      <div key={i} className="ag-itin-row">
+                        <div className="ag-itin-day-badge">Day {day.day}</div>
+                        <div style={{flex:1, display:'flex', flexDirection:'column', gap:6}}>
+                          <input className="ag-input" placeholder={`Day ${day.day} title (e.g. Arrival & City Tour)`} value={day.title} onChange={e => updateItin(i, 'title', e.target.value)} />
+                          <textarea className="ag-input" style={{minHeight:60, resize:'vertical'}} placeholder="Details about this day..." value={day.details} onChange={e => updateItin(i, 'details', e.target.value)} />
+                        </div>
+                        {itinerary.length > 1 && (
+                          <button type="button" className="ag-itin-remove" onClick={() => removeItinDay(i)}>{ICONS.trash}</button>
+                        )}
+                      </div>
+                    ))}
+                    <button type="button" className="ag-itin-add" onClick={addItinDay}>+ Add Day</button>
+                  </div>
                   <div className="ag-form-actions">
                     <button type="button" className="ag-cancel-btn" onClick={() => setActiveTab('dashboard')}>Cancel</button>
                     <button type="submit" className="ag-submit-btn" disabled={submitting || uploading}>{uploading ? 'Uploading...' : submitting ? 'Submitting...' : 'Submit for Review'}</button>
@@ -633,11 +877,11 @@ const styles = `
   .ag-mini-name{display:block;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .ag-mini-meta{display:block;font-size:11px;color:rgba(232,228,223,0.3);margin-top:1px;}
   .ag-mini-badge{font-size:10px;font-weight:600;padding:3px 9px;border-radius:100px;text-transform:capitalize;white-space:nowrap;flex-shrink:0;}
-  .ag-mini-price{font-size:13px;font-weight:600;color:#a8d96b;flex-shrink:0;}
   .ag-empty-sm{font-size:13px;color:rgba(232,228,223,0.3);padding:10px 0;}
   .ag-link{background:none;border:none;color:#a8d96b;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;text-decoration:underline;padding:0;}
   .ag-filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
-  .ag-filter-btn{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:rgba(232,228,223,0.45);font-size:12px;font-weight:500;padding:5px 14px;border-radius:100px;}
+  .ag-filter-btn{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:rgba(232,228,223,0.45);font-size:12px;font-weight:500;padding:5px 14px;border-radius:100px;cursor:pointer;transition:all 0.2s;font-family:'DM Sans',sans-serif;}
+  .ag-filter-btn.active{background:rgba(168,217,107,0.12);border-color:rgba(168,217,107,0.3);color:#a8d96b;font-weight:600;}
   .ag-tours-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;}
   .ag-tour-card{background:#0d1210;border:1px solid rgba(255,255,255,0.06);border-radius:18px;overflow:hidden;transition:transform 0.2s,border-color 0.2s;}
   .ag-tour-card:hover{transform:translateY(-3px);border-color:rgba(168,217,107,0.18);}
@@ -652,6 +896,13 @@ const styles = `
   .ag-tour-days{font-size:12px;color:rgba(232,228,223,0.38);font-weight:500;}
   .ag-tour-price{font-size:17px;font-weight:700;color:#a8d96b;font-family:'Playfair Display',serif;}
   .ag-rejection{font-size:11px;color:#f87171;margin-top:8px;background:rgba(248,113,113,0.07);padding:5px 9px;border-radius:7px;}
+  .ag-tour-actions{display:flex;gap:8px;margin-top:12px;}
+  .ag-edit-btn{display:flex;align-items:center;gap:5px;flex:1;justify-content:center;background:rgba(168,217,107,0.1);color:#a8d96b;border:1px solid rgba(168,217,107,0.2);border-radius:8px;padding:7px 10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:background 0.2s;}
+  .ag-edit-btn:hover:not(:disabled){background:rgba(168,217,107,0.2);}
+  .ag-edit-btn:disabled{opacity:0.5;cursor:not-allowed;}
+  .ag-delete-btn{display:flex;align-items:center;gap:5px;flex:1;justify-content:center;background:rgba(248,113,113,0.08);color:#f87171;border:1px solid rgba(248,113,113,0.2);border-radius:8px;padding:7px 10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:background 0.2s;}
+  .ag-delete-btn:hover:not(:disabled){background:rgba(248,113,113,0.18);}
+  .ag-delete-btn:disabled{opacity:0.5;cursor:not-allowed;}
   .ag-booking-card{background:#0d1210;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:18px 20px;margin-bottom:12px;transition:border-color 0.2s;}
   .ag-booking-card:hover{border-color:rgba(168,217,107,0.12);}
   .ag-booking-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;}
@@ -713,6 +964,19 @@ const styles = `
   .ag-verify-icon{display:flex;justify-content:center;margin-bottom:16px;color:rgba(168,217,107,0.5);}
   .ag-verify-card h2{font-family:'Playfair Display',serif;color:#fff;margin:0 0 10px;font-size:22px;}
   .ag-verify-card p{color:rgba(232,228,223,0.42);font-size:14px;line-height:1.7;margin:0;}
+  .ag-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);}
+  .ag-modal{background:#0d1210;border:1px solid rgba(168,217,107,0.15);border-radius:22px;width:100%;max-width:680px;max-height:90vh;display:flex;flex-direction:column;}
+  .ag-modal-head{display:flex;align-items:flex-start;justify-content:space-between;padding:24px 24px 0;gap:14px;flex-shrink:0;}
+  .ag-modal-body{padding:20px 24px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;flex:1;}
+  .ag-modal-body::-webkit-scrollbar{width:4px;}
+  .ag-modal-body::-webkit-scrollbar-thumb{background:rgba(168,217,107,0.2);border-radius:10px;}
+  .ag-modal-footer{padding:16px 24px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:10px;justify-content:flex-end;flex-shrink:0;}
+  .ag-itin-row{display:flex;align-items:flex-start;gap:12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;}
+  .ag-itin-day-badge{background:rgba(168,217,107,0.12);color:#a8d96b;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;white-space:nowrap;flex-shrink:0;margin-top:4px;}
+  .ag-itin-remove{background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.15);color:#f87171;border-radius:8px;padding:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:4px;}
+  .ag-itin-remove:hover{background:rgba(248,113,113,0.18);}
+  .ag-itin-add{background:transparent;border:2px dashed rgba(168,217,107,0.2);border-radius:10px;color:rgba(168,217,107,0.6);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:10px;cursor:pointer;width:100%;transition:all 0.2s;}
+  .ag-itin-add:hover{border-color:rgba(168,217,107,0.5);color:#a8d96b;background:rgba(168,217,107,0.04);}
   @media(max-width:880px){.ag-sidebar{transform:translateX(-100%)}.ag-sidebar.open{transform:translateX(0)}.ag-main{margin-left:0}.ag-hamburger{display:flex}.ag-two-col{grid-template-columns:1fr}.ag-form-row2,.ag-form-row3{grid-template-columns:1fr}.ag-content{padding:18px 16px 40px}.ag-topbar{padding:14px 16px}.ag-alert{margin:10px 16px 0}.ag-notif-drop{width:calc(100vw - 32px);right:-60px;}}
   @media(max-width:520px){.ag-stats{grid-template-columns:1fr 1fr}.ag-tours-grid{grid-template-columns:1fr}.ag-add-btn span{display:none}}
 `;

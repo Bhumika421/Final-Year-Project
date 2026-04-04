@@ -49,6 +49,15 @@ $router->add('GET',  '/api/admin/tours/pending',      function() { $admin = requ
 $router->add('POST', '/api/admin/tours/{id}/decide',  function($params) { $admin = require_admin(); admin_tour_decide($params, $admin); });
 $router->add('GET',  '/api/admin/agencies/pending',   function() { $admin = require_admin(); admin_agencies_pending(); });
 $router->add('POST', '/api/admin/agencies/{id}/verify', function($params) { $admin = require_admin(); admin_agency_verify($params); });
+$router->add('GET', '/api/admin/users', function() { 
+  $admin = require_admin(); 
+  admin_users_list(); 
+});
+
+$router->add('PUT', '/api/admin/users/{id}', function($p) { 
+  $admin = require_admin(); 
+  admin_user_update($p); 
+});
 $router->add('POST', '/api/admin/tours',              function() { $admin = require_admin(); tours_create($admin); });
 $router->add('PUT',  '/api/admin/tours/{id}',         function($params) { $admin = require_admin(); tours_update($params, $admin); });
 $router->add('DELETE', '/api/admin/tours/{id}',       function($params) { $admin = require_admin(); tours_delete($params, $admin); });
@@ -72,6 +81,8 @@ $router->add('DELETE', '/api/wishlist/{id}', function($params) { $user = require
 $router->add('POST', '/api/bookings',        function() { $user = require_auth(); bookings_create($user); });
 $router->add('GET',  '/api/bookings',        function() { $user = require_auth(); bookings_list($user); });
 $router->add('GET',  '/api/bookings/{id}',   function($params) { $user = require_auth(); bookings_get($params, $user); });
+$router->add('PUT',    '/api/bookings/{id}',   function($params) { $user = require_auth(); bookings_update($params, $user); });
+$router->add('DELETE', '/api/bookings/{id}',   function($params) { $user = require_auth(); bookings_delete($params, $user); });
 $router->add('GET',  '/api/admin/bookings',  function() { $admin = require_admin(); bookings_list_admin($admin); });
 $router->add('GET',  '/api/agency/bookings', function() { $agency = require_agency(); bookings_list_agency($agency); });
 $router->add('POST', '/api/payments/pay',    function() { $user = require_auth(); payments_pay($user); });

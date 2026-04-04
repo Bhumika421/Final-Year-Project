@@ -40,7 +40,8 @@ function tours_list(): void {
 
 function tours_list_my(array $agency): void {
   $stmt = db()->prepare(
-    "SELECT id,title,destination,category,duration_days,price_usd,rating,image_url,images_json,description,is_active,approval_status,rejection_reason,created_at
+    "SELECT id,title,destination,category,duration_days,price_usd,rating,image_url,images_json,
+            description,latitude,longitude,itinerary_json,is_active,approval_status,rejection_reason,created_at
      FROM tours WHERE agency_id=? ORDER BY created_at DESC"
   );
   $stmt->execute([(int)$agency['id']]);
