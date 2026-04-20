@@ -14,6 +14,7 @@ import TourDetail from './pages/TourDetail.jsx';
 import Wishlist from './pages/Wishlist.jsx';
 import Bookings from './pages/Bookings.jsx';
 import Payment from './pages/Payment.jsx';
+import EsewaSuccess from './pages/EsewaSuccess.jsx';
 import Notifications from './pages/Notifications.jsx';
 import Support from './pages/Support.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/payment/:bookingId" element={<Payment />} />
+        <Route path="/payment/esewa-success" element={<EsewaSuccess />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/support" element={<Support />} />
 

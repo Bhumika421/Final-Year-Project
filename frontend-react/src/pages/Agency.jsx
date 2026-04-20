@@ -77,10 +77,10 @@ function NotificationBell() {
           </div>
           <div className="ag-notif-list">
             {loading && notifs.length === 0 && <div className="ag-notif-empty">Loading...</div>}
-            {!loading && notifs.length === 0 && <div className="ag-notif-empty"><span style={{fontSize:28}}>🔕</span><span>No notifications yet</span></div>}
+            {!loading && notifs.length === 0 && <div className="ag-notif-empty"><span style={{fontSize:28}}></span><span>No notifications yet</span></div>}
             {notifs.map(n => (
               <div key={n.id} className={`ag-notif-item ${!n.is_read ? 'unread' : ''}`} onClick={() => !n.is_read && markRead(n.id)}>
-                <div className="ag-notif-icon">{n.category?.includes('payment') ? '💳' : '📋'}</div>
+                <div className="ag-notif-icon">{n.category?.includes('payment') ? '' : ''}</div>
                 <div className="ag-notif-body">
                   <div className="ag-notif-ntitle">{n.title}</div>
                   <div className="ag-notif-nbody">{n.body}</div>
@@ -691,6 +691,28 @@ export default function Agency() {
                     </div>
                     <div className="ag-booking-amount">NPR {new Intl.NumberFormat('en-NP').format(Math.round(Number(b.total_usd||0)*133))}</div>
                   </div>
+                  {/* Travelers Info */}
+{b.travelers && b.travelers.length > 0 && (
+  <div style={{
+    background: 'rgba(168,217,107,0.04)',
+    border: '1px solid rgba(168,217,107,0.1)',
+    borderRadius: 10,
+    padding: '10px 14px',
+    marginBottom: 12,
+  }}>
+    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(168,217,107,0.5)', marginBottom: 8 }}>
+      Travelers ({b.travelers.length})
+    </div>
+    {b.travelers.map((t, i) => (
+      <div key={i} style={{ display: 'flex', gap: 16, fontSize: 13, color: 'rgba(232,228,223,0.6)', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <span style={{ color: '#a8d96b', fontWeight: 700, minWidth: 60 }}>#{i + 1} {t.name || 'N/A'}</span>
+        {t.age && <span>Age: {t.age}</span>}
+        {t.contact && <span>{t.contact}</span>}
+        {t.passport && <span>🪪 {t.passport}</span>}
+      </div>
+    ))}
+  </div>
+)}
                   {b.status === 'pending' && (
                     <div className="ag-booking-actions">
                       <button className="ag-confirm-btn" onClick={() => confirmBooking(b.id)} disabled={actionLoading === b.id+'-confirm'}>

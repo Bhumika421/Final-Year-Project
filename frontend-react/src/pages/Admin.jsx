@@ -244,6 +244,9 @@ export default function Admin() {
   const [users, setUsers] = useState([]);
   const [editingTour, setEditingTour] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ full_name: '', new_password: '', current_password: '' });
+  const [profileMsg, setProfileMsg] = useState({ text: '', type: '' });
   const [stats, setStats] = useState({ totalUsers:0, activeTours:0, totalBookings:0, totalRevenue:0 });
   const [newTour, setNewTour] = useState({ title:'', destination:'', category:'', duration_days:3, price_usd:199, rating:4.5, image_url:'', description:'', latitude:'', longitude:'' });
   const [broadcast, setBroadcast] = useState({ category:'offers', title:'', body:'', expires_at:'' });
@@ -364,6 +367,27 @@ export default function Admin() {
     } catch (e) { setMsg(e?.response?.data?.error || 'Update failed'); }
   }
 
+  async function saveProfile() {
+    setProfileMsg({ text: '', type: '' });
+    const payload = {};
+    if (profileForm.full_name) payload.full_name = profileForm.full_name;
+    if (profileForm.new_password) {
+      payload.new_password = profileForm.new_password;
+      payload.current_password = profileForm.current_password;
+    }
+    if (!Object.keys(payload).length) { setProfileMsg({ text: 'Nothing to update!', type: 'err' }); return; }
+    try {
+      const res = await api.put('/api/auth/update', payload);
+      if (res.data.user) localStorage.setItem('user', JSON.stringify(res.data.user));
+      setProfileMsg({ text: 'Profile updated successfully! ✓', type: 'ok' });
+      setProfileForm({ full_name: '', new_password: '', current_password: '' });
+      setEditingProfile(false);
+      await load();
+    } catch (e) {
+      setProfileMsg({ text: e?.response?.data?.error || 'Update failed', type: 'err' });
+    }
+  }
+
   function logout() {
     localStorage.removeItem('token'); localStorage.removeItem('user'); nav('/admin-login');
   }
@@ -429,6 +453,10 @@ export default function Admin() {
             <div style={{fontSize:'11px', fontWeight:'900', opacity:'0.5', padding:'0 12px 8px', letterSpacing:'1px', textTransform:'uppercase'}}>COMMUNICATIONS</div>
             <button onClick={() => setActiveTab('support')} style={navBtn('support')}>Support<span style={badgeStyle}>{tickets.length}</span></button>
             <button onClick={() => setActiveTab('broadcast')} style={navBtn('broadcast')}>Broadcast</button>
+          </div>
+          <div style={{paddingTop:'16px'}}>
+            <div style={{fontSize:'11px', fontWeight:'900', opacity:'0.5', padding:'0 12px 8px', letterSpacing:'1px', textTransform:'uppercase'}}>ACCOUNT</div>
+            <button onClick={() => setActiveTab('profile')} style={navBtn('profile')}>My Profile</button>
           </div>
         </div>
         <div style={{borderTop:'1px solid rgba(255,255,255,0.08)', padding:'16px 12px', marginTop:'auto'}}>
@@ -515,7 +543,7 @@ export default function Admin() {
             <h2 style={{fontSize:'24px', fontWeight:'900', margin:'0 0 24px', color:'#e8eefc'}}>Agency Verification Requests</h2>
             {msg && <Toast msg={msg} />}
             {pendingAgencies.length === 0 ? (
-              <div style={{textAlign:'center', padding:'40px 20px', color:'rgba(232,238,252,0.75)'}}>No pending agencies </div>
+              <div style={{textAlign:'center', padding:'40px 20px', color:'rgba(232,238,252,0.75)'}}>No pending agencies ✅</div>
             ) : pendingAgencies.map(a => (
               <div key={a.id} style={{background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:'10px', padding:'16px', marginBottom:'12px'}}>
                 <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px'}}>
@@ -572,7 +600,7 @@ export default function Admin() {
                       <button onClick={()=>decideTour(t.id,'approved')} style={{background:'#10b981', border:'none', color:'white', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontWeight:'600', fontSize:'12px'}}>Approve</button>
                       <button onClick={()=>decideTour(t.id,'rejected')} style={{background:'#ef4444', border:'none', color:'white', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontWeight:'600', fontSize:'12px'}}>Reject</button>
                     </>)}
-                    {/* ✅ EDIT BUTTON */}
+                    {/*  EDIT BUTTON */}
                     <button onClick={()=>setEditingTour(t)} style={{background:'rgba(99,102,241,0.15)', border:'1px solid rgba(99,102,241,0.3)', color:'#a5b4fc', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontWeight:'600', fontSize:'12px'}}>Edit </button>
                     <button onClick={()=>deleteTour(t.id)} style={{background:'#ef4444', border:'none', color:'white', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontWeight:'600', fontSize:'12px'}}>Delete</button>
                   </div>
@@ -674,6 +702,68 @@ export default function Admin() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* PROFILE */}
+        {activeTab === 'profile' && (
+          <div style={{padding:'32px', maxWidth:'560px'}}>
+            <h2 style={{fontSize:'24px', fontWeight:'900', margin:'0 0 24px', color:'#e8eefc'}}>My Profile</h2>
+            {profileMsg.text && (
+              <div style={{padding:'10px 16px', borderRadius:'10px', marginBottom:'16px', fontSize:'13px', fontWeight:'500',
+                background: profileMsg.type==='ok' ? 'rgba(16,185,129,0.1)' : 'rgba(248,113,113,0.1)',
+                border: profileMsg.type==='ok' ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(248,113,113,0.25)',
+                color: profileMsg.type==='ok' ? '#86efac' : '#f87171'
+              }}>{profileMsg.text}</div>
+            )}
+
+            {/* Profile Info Card */}
+            <div style={{background:'linear-gradient(180deg, rgba(18,26,45,0.98), rgba(11,18,32,0.96))', border:'1px solid rgba(255,255,255,0.06)', borderRadius:'14px', padding:'24px', marginBottom:'20px'}}>
+              <div style={{display:'flex', alignItems:'center', gap:'16px', marginBottom:'20px'}}>
+                <div style={{width:'60px', height:'60px', borderRadius:'50%', background:'linear-gradient(135deg, #6366f1, #8b5cf6)', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:'900', fontSize:'20px'}}>
+                  {(user?.full_name || 'A').slice(0,2).toUpperCase()}
+                </div>
+                <div>
+                  <div style={{fontWeight:'700', fontSize:'18px', color:'#e8eefc'}}>{user?.full_name || 'Admin User'}</div>
+                  <div style={{fontSize:'13px', color:'rgba(232,238,252,0.4)'}}>{user?.email}</div>
+                  <span style={{background:'rgba(99,102,241,0.2)', color:'#a5b4fc', padding:'2px 10px', borderRadius:'100px', fontSize:'11px', fontWeight:'700'}}>Super Admin</span>
+                </div>
+              </div>
+
+              {!editingProfile ? (
+                <button onClick={() => { setEditingProfile(true); setProfileForm({ full_name: user?.full_name || '', new_password: '', current_password: '' }); }}
+                  style={{background:'rgba(99,102,241,0.15)', border:'1px solid rgba(99,102,241,0.3)', color:'#a5b4fc', padding:'10px 20px', borderRadius:'10px', cursor:'pointer', fontWeight:'600', fontSize:'13px', fontFamily:'inherit'}}>
+                   Edit Profile
+                </button>
+              ) : (
+                <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+                  <div style={{fontSize:'10px', fontWeight:'700', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(99,102,241,0.6)', borderBottom:'1px solid rgba(99,102,241,0.1)', paddingBottom:'6px'}}>Update Info</div>
+                  <div>
+                    <div style={{fontSize:'11px', color:'rgba(232,238,252,0.4)', marginBottom:'5px', textTransform:'uppercase'}}>Full Name</div>
+                    <input style={iStyle} placeholder={user?.full_name || 'Full name'} value={profileForm.full_name} onChange={e=>setProfileForm(f=>({...f,full_name:e.target.value}))} />
+                  </div>
+
+                  <div style={{fontSize:'10px', fontWeight:'700', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(99,102,241,0.6)', borderBottom:'1px solid rgba(99,102,241,0.1)', paddingBottom:'6px', marginTop:'4px'}}>Change Password (optional)</div>
+                  <div>
+                    <div style={{fontSize:'11px', color:'rgba(232,238,252,0.4)', marginBottom:'5px', textTransform:'uppercase'}}>Current Password</div>
+                    <input style={iStyle} type="password" placeholder="Enter current password" value={profileForm.current_password} onChange={e=>setProfileForm(f=>({...f,current_password:e.target.value}))} />
+                  </div>
+                  <div>
+                    <div style={{fontSize:'11px', color:'rgba(232,238,252,0.4)', marginBottom:'5px', textTransform:'uppercase'}}>New Password</div>
+                    <input style={iStyle} type="password" placeholder="Min 8 chars, upper, lower, number, special" value={profileForm.new_password} onChange={e=>setProfileForm(f=>({...f,new_password:e.target.value}))} />
+                  </div>
+
+                  <div style={{display:'flex', gap:'10px', marginTop:'4px'}}>
+                    <button onClick={() => { setEditingProfile(false); setProfileMsg({ text:'', type:'' }); }}
+                      style={{background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.09)', color:'rgba(232,238,252,0.55)', borderRadius:'100px', padding:'10px 22px', cursor:'pointer', fontSize:'13px', fontFamily:'inherit'}}>Cancel</button>
+                    <button onClick={saveProfile}
+                      style={{background:'#6366f1', border:'none', color:'white', borderRadius:'100px', padding:'10px 26px', cursor:'pointer', fontWeight:'700', fontSize:'13px', fontFamily:'inherit'}}>
+                      Save Changes
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

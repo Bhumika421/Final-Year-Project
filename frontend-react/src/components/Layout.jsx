@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { api } from '../api/client';
 
 function getUser() {
   try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; }
@@ -15,6 +16,7 @@ export default function Layout({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const profileRef = useRef(null);
 
   useEffect(() => {
@@ -38,10 +40,26 @@ export default function Layout({ children }) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Fetch unread notification count
+  useEffect(() => {
+    if (!getToken() || !user || user.role !== 'customer') { setUnreadCount(0); return; }
+    async function fetchUnread() {
+      try {
+        const res = await api.get('/api/notifications');
+        const items = res.data.items || [];
+        setUnreadCount(items.filter(n => !n.is_read).length);
+      } catch { setUnreadCount(0); }
+    }
+    fetchUnread();
+    const iv = setInterval(fetchUnread, 30000);
+    return () => clearInterval(iv);
+  }, [user]);
+
   function logout() {
     localStorage.removeItem('sjp_token');
     localStorage.removeItem('user');
     setUser(null);
+    setUnreadCount(0);
     setProfileOpen(false);
     window.dispatchEvent(new Event('auth-change'));
     nav('/');
@@ -50,7 +68,6 @@ export default function Layout({ children }) {
   const isHome = loc.pathname === '/';
   const close = () => setProfileOpen(false);
 
-  // Agency ra Admin ko lagi navbar/footer hide garnu — tiniharuko आफ्नै layout xa
   const isAgencyPage = loc.pathname.startsWith('/agency');
   const isAdminPage  = loc.pathname.startsWith('/admin') && loc.pathname !== '/admin-login' && loc.pathname !== '/admin-setup';
 
@@ -67,7 +84,7 @@ export default function Layout({ children }) {
   const userLinks = user && user.role === 'customer' ? [
     { to: '/bookings', label: 'My Bookings' },
     { to: '/wishlist', label: 'Wishlist' },
-    { to: '/notifications', label: 'Notifications' },
+    { to: '/notifications', label: 'Notifications', badge: unreadCount },
   ] : [];
 
   const ddLinks = [
@@ -76,7 +93,7 @@ export default function Layout({ children }) {
     ...(user?.role === 'customer' ? [
       { to: '/bookings', label: 'My Bookings' },
       { to: '/wishlist', label: 'Wishlist' },
-      { to: '/notifications', label: 'Notifications' },
+      { to: '/notifications', label: 'Notifications', badge: unreadCount },
     ] : []),
   ];
 
@@ -98,6 +115,11 @@ export default function Layout({ children }) {
         .nb-links { display: flex; align-items: center; gap: 4px; list-style: none; padding: 0; margin: 0 16px 0 0; }
         .nb-links a { text-decoration: none; color: rgba(240,237,232,0.65); font-size: 14px; font-weight: 500; padding: 6px 14px; border-radius: 100px; transition: color 0.2s, background 0.2s; }
         .nb-links a:hover, .nb-links a.active { color: #fff; background: rgba(255,255,255,0.08); }
+
+        .nb-notif-link { position: relative; display: inline-flex; align-items: center; }
+        .nb-notif-badge { position: absolute; top: -4px; right: -2px; background: #a8d96b; color: #0a0e0d; font-size: 9px; font-weight: 800; min-width: 16px; height: 16px; border-radius: 100px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid #0a0e0d; line-height: 1; animation: popIn 0.3s ease; }
+        @keyframes popIn { from{transform:scale(0)} to{transform:scale(1)} }
+
         .nb-auth { display: flex; align-items: center; gap: 8px; }
         .nb-btn-ghost { background: transparent; color: rgba(240,237,232,0.7); border: 1px solid rgba(255,255,255,0.18); border-radius: 100px; padding: 7px 18px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.2s; display: inline-block; }
         .nb-btn-ghost:hover { color: #fff; border-color: rgba(255,255,255,0.35); background: rgba(255,255,255,0.06); }
@@ -111,16 +133,20 @@ export default function Layout({ children }) {
         .nb-dd-header { padding: 12px 14px 8px; border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 6px; }
         .nb-dd-name { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .nb-dd-role { font-size: 11px; color: #a8d96b; text-transform: capitalize; font-weight: 500; }
-        .nb-dd-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; color: rgba(240,237,232,0.7); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; transition: background 0.15s, color 0.15s; width: 100%; background: none; border: none; text-align: left; font-family: 'DM Sans', sans-serif; }
+        .nb-dd-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-radius: 10px; color: rgba(240,237,232,0.7); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; transition: background 0.15s, color 0.15s; width: 100%; background: none; border: none; text-align: left; font-family: 'DM Sans', sans-serif; }
         .nb-dd-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
         .nb-dd-item.danger:hover { background: rgba(220,60,60,0.12); color: #f87171; }
         .nb-dd-sep { height: 1px; background: rgba(255,255,255,0.07); margin: 6px 0; }
+        .nb-dd-badge { background: #a8d96b; color: #0a0e0d; font-size: 10px; font-weight: 800; padding: 1px 7px; border-radius: 100px; }
+
         .nb-hamburger { display: none; background: none; border: none; cursor: pointer; padding: 6px; color: rgba(240,237,232,0.8); }
         .nb-mobile-menu { position: fixed; inset: 0; background: #0a0e0d; z-index: 999; padding: 80px 24px 32px; display: flex; flex-direction: column; gap: 8px; animation: slideIn 0.22s ease; }
         @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
-        .nb-mobile-link { display: block; padding: 16px 20px; border-radius: 14px; color: rgba(240,237,232,0.75); font-size: 18px; font-weight: 500; text-decoration: none; border: 1px solid rgba(255,255,255,0.07); transition: background 0.2s, color 0.2s; }
+        .nb-mobile-link { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-radius: 14px; color: rgba(240,237,232,0.75); font-size: 18px; font-weight: 500; text-decoration: none; border: 1px solid rgba(255,255,255,0.07); transition: background 0.2s, color 0.2s; }
         .nb-mobile-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
         .nb-mobile-close { position: absolute; top: 18px; right: 20px; background: rgba(255,255,255,0.07); border: none; border-radius: 50%; width: 38px; height: 38px; color: #fff; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .nb-mobile-badge { background: #a8d96b; color: #0a0e0d; font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: 100px; }
+
         .page-wrap { min-height: 100vh; }
         .page-wrap.no-hero { padding-top: 66px; }
         .nb-footer { border-top: 1px solid rgba(168,217,107,0.12); background: #0a0f0c; padding: 32px 32px 0; font-family: 'DM Sans', sans-serif; }
@@ -159,7 +185,12 @@ export default function Layout({ children }) {
             ))}
             {user && userLinks.map(l => (
               <li key={l.to}>
-                <Link to={l.to} className={loc.pathname.startsWith(l.to) ? 'active' : ''}>{l.label}</Link>
+                <span className="nb-notif-link">
+                  <Link to={l.to} className={loc.pathname.startsWith(l.to) ? 'active' : ''}>{l.label}</Link>
+                  {l.badge > 0 && (
+                    <span className="nb-notif-badge">{l.badge > 9 ? '9+' : l.badge}</span>
+                  )}
+                </span>
               </li>
             ))}
           </ul>
@@ -177,7 +208,10 @@ export default function Layout({ children }) {
                       <div className="nb-dd-role">{user.role || 'Customer'}</div>
                     </div>
                     {ddLinks.map(l => (
-                      <Link key={l.to} className="nb-dd-item" to={l.to} onClick={close}>{l.label}</Link>
+                      <Link key={l.to} className="nb-dd-item" to={l.to} onClick={close}>
+                        <span>{l.label}</span>
+                        {l.badge > 0 && <span className="nb-dd-badge">{l.badge > 9 ? '9+' : l.badge}</span>}
+                      </Link>
                     ))}
                     <div className="nb-dd-sep" />
                     <button className="nb-dd-item danger" onClick={logout}>Log out</button>
@@ -207,7 +241,10 @@ export default function Layout({ children }) {
             <Link key={l.to} className="nb-mobile-link" to={l.to} onClick={() => setMenuOpen(false)}>{l.label}</Link>
           ))}
           {user && userLinks.map(l => (
-            <Link key={l.to} className="nb-mobile-link" to={l.to} onClick={() => setMenuOpen(false)}>{l.label}</Link>
+            <Link key={l.to} className="nb-mobile-link" to={l.to} onClick={() => setMenuOpen(false)}>
+              <span>{l.label}</span>
+              {l.badge > 0 && <span className="nb-mobile-badge">{l.badge > 9 ? '9+' : l.badge}</span>}
+            </Link>
           ))}
           {user && <Link className="nb-mobile-link" to="/profile" onClick={() => setMenuOpen(false)}>My Profile</Link>}
           {user && <Link className="nb-mobile-link" to="/dashboard" onClick={() => setMenuOpen(false)}>Dashboard</Link>}
