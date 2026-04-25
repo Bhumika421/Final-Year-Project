@@ -5,7 +5,17 @@ require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/../utils.php';
 
 function notifications_list(array $user): void {
-  $stmt = db()->prepare("SELECT * FROM notifications WHERE user_id=? AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY created_at DESC");
+  $stmt = db()->prepare("SELECT id, user_id,
+                                COALESCE(category, 'general') AS category,
+                                COALESCE(title, 'Notification') AS title,
+                                COALESCE(body, message) AS body,
+                                message,
+                                is_read,
+                                created_at,
+                                expires_at
+                         FROM notifications
+                         WHERE user_id=? AND (expires_at IS NULL OR expires_at > NOW())
+                         ORDER BY created_at DESC");
   $stmt->execute([(int)$user['id']]);
   json_response(['ok'=>true,'items'=>$stmt->fetchAll()]);
 }
@@ -20,13 +30,16 @@ function admin_notify_broadcast(array $admin): void {
   $data = read_json_body();
   require_fields($data, ['title','body','category']);
   $category = (string)$data['category'];
+  $title = trim((string)$data['title']);
+  $body = trim((string)$data['body']);
+  $message = $title !== '' ? ($title . ': ' . $body) : $body;
   $expires = $data['expires_at'] ?? null;
 
   // send to all active customers
   $users = db()->query("SELECT id FROM users WHERE is_active=1")->fetchAll();
-  $stmt = db()->prepare("INSERT INTO notifications (user_id,category,title,body,expires_at) VALUES (?,?,?,?,?)");
+  $stmt = db()->prepare("INSERT INTO notifications (user_id,category,title,body,message,expires_at) VALUES (?,?,?,?,?,?)");
   foreach ($users as $u) {
-    $stmt->execute([(int)$u['id'], $category, trim((string)$data['title']), trim((string)$data['body']), $expires]);
+    $stmt->execute([(int)$u['id'], $category, $title, $body, $message, $expires]);
   }
   json_response(['ok'=>true,'sent'=>count($users)]);
 }

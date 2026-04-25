@@ -3,8 +3,7 @@ declare(strict_types=1);
 
 function upload_images(): void {
     $uploadDir = __DIR__ . '/../../public/uploads/';
-    
-    // Create uploads directory if it doesn't exist
+
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
     }
@@ -14,38 +13,67 @@ function upload_images(): void {
         return;
     }
 
-    $files = $_FILES['images'];
-    $urls = [];
-    $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    $files   = $_FILES['images'];
+    $urls    = [];
+    $allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/jfif'];
     $maxSize = 5 * 1024 * 1024; // 5MB
+    $minWidth  = 800;  
+    $minHeight = 500;  
 
-    // Handle single or multiple files
+    // Build base URL from current request
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host     = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
+    $baseUrl   = $protocol . '://' . $host . $scriptDir;
+
     $count = is_array($files['name']) ? count($files['name']) : 1;
 
     for ($i = 0; $i < $count; $i++) {
-        $name     = is_array($files['name'])     ? $files['name'][$i]     : $files['name'];
-        $tmp      = is_array($files['tmp_name']) ? $files['tmp_name'][$i] : $files['tmp_name'];
-        $type     = is_array($files['type'])     ? $files['type'][$i]     : $files['type'];
-        $size     = is_array($files['size'])     ? $files['size'][$i]     : $files['size'];
-        $error    = is_array($files['error'])    ? $files['error'][$i]    : $files['error'];
+        $name  = is_array($files['name'])     ? $files['name'][$i]     : $files['name'];
+        $tmp   = is_array($files['tmp_name']) ? $files['tmp_name'][$i] : $files['tmp_name'];
+        $type  = is_array($files['type'])     ? $files['type'][$i]     : $files['type'];
+        $size  = is_array($files['size'])     ? $files['size'][$i]     : $files['size'];
+        $error = is_array($files['error'])    ? $files['error'][$i]    : $files['error'];
 
         if ($error !== UPLOAD_ERR_OK) continue;
-        if (!in_array($type, $allowed)) {
+
+        // Check mime type via finfo for security
+        $finfo    = finfo_open(FILEINFO_MIME_TYPE);
+        $realType = finfo_file($finfo, $tmp);
+        finfo_close($finfo);
+
+        if (!in_array($realType, $allowed, true)) {
             json_response(['error' => 'Only JPG, PNG, WEBP, GIF allowed'], 422);
             return;
         }
+
         if ($size > $maxSize) {
             json_response(['error' => 'Each image must be under 5MB'], 422);
             return;
         }
 
-        $ext      = pathinfo($name, PATHINFO_EXTENSION);
-        $filename = uniqid('tour_', true) . '.' . strtolower($ext);
+        // ── NEW: Minimum dimension check ──
+        $imageInfo = getimagesize($tmp);
+        if (!$imageInfo) {
+            json_response(['error' => "Invalid image file: $name"], 422);
+            return;
+        }
+        [$width, $height] = $imageInfo;
+        if ($width < $minWidth || $height < $minHeight) {
+            json_response([
+                'error' => "\"$name\" is too small ({$width}x{$height}px). Minimum size is {$minWidth}x{$minHeight}px. Please upload a higher quality image."
+            ], 422);
+            return;
+        }
+        // ── END dimension check ──
+
+        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        if ($ext === 'jfif') $ext = 'jpg';
+        $filename = uniqid('tour_', true) . '.' . $ext;
         $dest     = $uploadDir . $filename;
 
         if (move_uploaded_file($tmp, $dest)) {
-            // Return relative URL
-            $urls[] = '/uploads/' . $filename;
+            $urls[] = $baseUrl . '/uploads/' . $filename;
         }
     }
 

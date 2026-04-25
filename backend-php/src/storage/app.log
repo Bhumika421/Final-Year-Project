@@ -1,0 +1,6 @@
+[2026-04-17 07:21:31] khalti_create_order rejected {"booking_id":13,"error":"Khalti API rejected request"}
+[2026-04-17 07:22:47] khalti_create_order rejected {"booking_id":13,"error":"Khalti API rejected request"}
+[2026-04-17 07:37:51] khalti_verify_order rejected {"booking_id":14,"pidx":"Xq8NKSLrqMZyJhYs3p9TPi","error":"Khalti purchase order mismatch","details":null}
+[2026-04-17 07:37:51] khalti_verify_order rejected {"booking_id":14,"pidx":"Xq8NKSLrqMZyJhYs3p9TPi","error":"Khalti purchase order mismatch","details":null}
+[2026-04-17 08:04:07] esewa_verify_order rejected {"booking_id":16,"error":"eSewa verify API rejected request"}
+[2026-04-17 08:04:07] esewa_verify_order rejected {"booking_id":16,"error":"eSewa verify API rejected request"}

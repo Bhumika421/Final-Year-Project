@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+
+
 require_once __DIR__ . '/../src/middleware/cors.php';
 require_once __DIR__ . '/../src/router.php';
 
@@ -14,6 +19,9 @@ require_once __DIR__ . '/../src/controllers/support_controller.php';
 require_once __DIR__ . '/../src/controllers/notifications_controller.php';
 require_once __DIR__ . '/../src/controllers/currency_controller.php';
 require_once __DIR__ . '/../src/controllers/admin_controller.php';
+require_once __DIR__ . '/../src/controllers/paypal_controller.php';
+require_once __DIR__ . '/../src/controllers/esewa_controller.php';
+require_once __DIR__ . '/../src/controllers/khalti_controller.php';
 
 require_once __DIR__ . '/../src/controllers/upload_controller.php';
 handle_cors();
@@ -86,8 +94,20 @@ $router->add('DELETE', '/api/bookings/{id}',   function($params) { $user = requi
 $router->add('GET',  '/api/admin/bookings',  function() { $admin = require_admin(); bookings_list_admin($admin); });
 $router->add('GET',  '/api/agency/bookings', function() { $agency = require_agency(); bookings_list_agency($agency); });
 $router->add('POST', '/api/payments/pay',    function() { $user = require_auth(); payments_pay($user); });
+$router->add('POST', '/api/payments/paypal/create', function() { $user = require_auth(); paypal_create_order($user); });
+$router->add('POST', '/api/payments/paypal/capture', function() { $user = require_auth(); paypal_capture_order($user); });
+$router->add('POST', '/api/payments/esewa/create', function() { $user = require_auth(); esewa_create_order($user); });
+$router->add('POST', '/api/payments/esewa/verify', function() { $user = require_auth(); esewa_verify_order($user); });
+$router->add('POST', '/api/payments/khalti/create', function() { $user = require_auth(); khalti_create_order($user); });
+$router->add('POST', '/api/payments/khalti/verify', function() { $user = require_auth(); khalti_verify_order($user); });
 $router->add('POST', '/api/agency/bookings/{id}/confirm', function($params) { $agency = require_agency(); booking_confirm($params, $agency); });
+// Refund routes - YO ADD GARA
+$router->add('POST', '/api/bookings/{id}/refund',        function($params) { $user = require_auth(); refund_request($params, $user); });
+$router->add('GET',  '/api/admin/refunds',               function() { $admin = require_admin(); refund_list_admin(); });
+$router->add('POST', '/api/admin/refunds/{id}/decide',   function($params) { $admin = require_admin(); refund_decide($params); });
 $router->add('POST', '/api/agency/bookings/{id}/reject',  function($params) { $agency = require_agency(); booking_reject($params, $agency); });
+// Loyalty
+$router->add('GET', '/api/loyalty/status', function() { $user = require_auth(); loyalty_status($user); });
 // Support
 $router->add('POST', '/api/support',                    function() { $user = null; try { $user = require_auth(); } catch (Throwable $e) {} support_create($user); });
 $router->add('GET',  '/api/support/my',                 function() { $user = require_auth(); support_my($user); });

@@ -43,6 +43,10 @@ function app_log(string $message, array $context = []): void {
   if ($context) $line .= ' ' . json_encode($context, JSON_UNESCAPED_SLASHES);
   $line .= PHP_EOL;
   $path = __DIR__ . '/../storage/logs/app.log';
+  $dir = dirname($path);
+  if (!is_dir($dir)) {
+    @mkdir($dir, 0775, true);
+  }
   @file_put_contents($path, $line, FILE_APPEND);
 }
 
