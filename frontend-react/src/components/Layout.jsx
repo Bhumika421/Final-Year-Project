@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { api } from '../api/client';
+import { getLoyaltyLevel, getBookingsCount } from '../utils/loyalty';
 
 function getUser() {
   try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; }
@@ -16,7 +16,7 @@ export default function Layout({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [completedBookings, setCompletedBookings] = useState(0);
   const profileRef = useRef(null);
 
   useEffect(() => {
@@ -25,6 +25,14 @@ export default function Layout({ children }) {
     window.addEventListener('auth-change', sync);
     return () => { window.removeEventListener('storage', sync); window.removeEventListener('auth-change', sync); };
   }, []);
+
+  useEffect(() => {
+    if (!getToken()) {
+      setCompletedBookings(0);
+      return;
+    }
+    getBookingsCount().then(count => setCompletedBookings(count));
+  }, [user]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -40,26 +48,10 @@ export default function Layout({ children }) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Fetch unread notification count
-  useEffect(() => {
-    if (!getToken() || !user || user.role !== 'customer') { setUnreadCount(0); return; }
-    async function fetchUnread() {
-      try {
-        const res = await api.get('/api/notifications');
-        const items = res.data.items || [];
-        setUnreadCount(items.filter(n => !n.is_read).length);
-      } catch { setUnreadCount(0); }
-    }
-    fetchUnread();
-    const iv = setInterval(fetchUnread, 30000);
-    return () => clearInterval(iv);
-  }, [user]);
-
   function logout() {
     localStorage.removeItem('sjp_token');
     localStorage.removeItem('user');
     setUser(null);
-    setUnreadCount(0);
     setProfileOpen(false);
     window.dispatchEvent(new Event('auth-change'));
     nav('/');
@@ -69,33 +61,31 @@ export default function Layout({ children }) {
   const close = () => setProfileOpen(false);
 
   const isAgencyPage = loc.pathname.startsWith('/agency');
-  const isAdminPage  = loc.pathname.startsWith('/admin') && loc.pathname !== '/admin-login' && loc.pathname !== '/admin-setup';
-
-  if (isAgencyPage || isAdminPage) {
-    return <>{children}</>;
-  }
+  const isAdminPage  = loc.pathname.startsWith('/admin');
+  if (isAgencyPage || isAdminPage) return <>{children}</>;
 
   const navLinks = [
-    { to: '/', label: 'Home' },
-    { to: '/tours', label: 'Tours' },
+    { to: '/',        label: 'Home' },
+    { to: '/tours',   label: 'Tours' },
+    { to: '/wishlist', label: 'Wishlist' },
     { to: '/support', label: 'Support' },
   ];
 
-  const userLinks = user && user.role === 'customer' ? [
-    { to: '/bookings', label: 'My Bookings' },
-    { to: '/wishlist', label: 'Wishlist' },
-    { to: '/notifications', label: 'Notifications', badge: unreadCount },
-  ] : [];
-
   const ddLinks = [
     { to: '/dashboard', label: 'Dashboard' },
-    { to: '/profile', label: 'My Profile' },
+    { to: '/profile',   label: 'My Profile' },
     ...(user?.role === 'customer' ? [
-      { to: '/bookings', label: 'My Bookings' },
-      { to: '/wishlist', label: 'Wishlist' },
-      { to: '/notifications', label: 'Notifications', badge: unreadCount },
+      { to: '/bookings',      label: 'My Bookings' },
+      { to: '/rewards',       label: 'Loyalty Program' },
+      { to: '/notifications', label: 'Notifications' },
     ] : []),
   ];
+
+  const loyaltyLevel = getLoyaltyLevel(completedBookings);
+  const fullName = user?.full_name || user?.name || user?.email || 'User';
+  const initials = fullName[0].toUpperCase();
+  // Show only first name in navbar to keep it compact (or full if short)
+  const navDisplayName = user?.full_name || user?.name || user?.email?.split('@')[0] || 'User';
 
   return (
     <>
@@ -106,51 +96,77 @@ export default function Layout({ children }) {
         body { font-family: 'DM Sans', sans-serif; background: #0a0e0d; color: #f0ede8; margin: 0; min-height: 100vh; }
 
         .nb { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; transition: background 0.3s, backdrop-filter 0.3s, box-shadow 0.3s; padding: 0 32px; }
-        .nb.scrolled { background: rgba(10,14,13,0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: 0 1px 0 rgba(255,255,255,0.07); }
+        .nb.scrolled { background: rgba(10, 38, 22, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: 0 1px 0 rgba(168,217,107,0.15); }
+        .nb:not(.scrolled) { background: linear-gradient(180deg, rgba(5,20,12,0.9) 0%, transparent 100%); }
         .nb-inner { max-width: 1200px; margin: 0 auto; height: 66px; display: flex; align-items: center; }
         .nb-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
         .nb-logo-text { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700; color: #fff; line-height: 1.1; }
-        .nb-logo-sub { font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 400; color: rgba(240,237,232,0.45); letter-spacing: 0.06em; display: block; }
+        .nb-logo-sub { font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 400; color: rgba(168,217,107,0.65); letter-spacing: 0.06em; display: block; }
         .nb-spacer { flex: 1; }
         .nb-links { display: flex; align-items: center; gap: 4px; list-style: none; padding: 0; margin: 0 16px 0 0; }
-        .nb-links a { text-decoration: none; color: rgba(240,237,232,0.65); font-size: 14px; font-weight: 500; padding: 6px 14px; border-radius: 100px; transition: color 0.2s, background 0.2s; }
-        .nb-links a:hover, .nb-links a.active { color: #fff; background: rgba(255,255,255,0.08); }
+        .nb-links a { text-decoration: none; color: rgba(240,237,232,0.75); font-size: 14px; font-weight: 500; padding: 6px 14px; border-radius: 100px; transition: color 0.2s, background 0.2s; }
+        .nb-links a:hover, .nb-links a.active { color: #fff; background: rgba(168,217,107,0.12); }
 
-        .nb-notif-link { position: relative; display: inline-flex; align-items: center; }
-        .nb-notif-badge { position: absolute; top: -4px; right: -2px; background: #a8d96b; color: #0a0e0d; font-size: 9px; font-weight: 800; min-width: 16px; height: 16px; border-radius: 100px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid #0a0e0d; line-height: 1; animation: popIn 0.3s ease; }
-        @keyframes popIn { from{transform:scale(0)} to{transform:scale(1)} }
+        .nb-list-btn { display: inline-flex; align-items: center; gap: 7px; background: transparent; color: rgba(240,237,232,0.8); border: 1px solid rgba(168,217,107,0.3); border-radius: 100px; padding: 7px 16px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.2s; white-space: nowrap; margin-right: 8px; }
+        .nb-list-btn:hover { color: #fff; border-color: rgba(168,217,107,0.7); background: rgba(168,217,107,0.1); }
 
         .nb-auth { display: flex; align-items: center; gap: 8px; }
         .nb-btn-ghost { background: transparent; color: rgba(240,237,232,0.7); border: 1px solid rgba(255,255,255,0.18); border-radius: 100px; padding: 7px 18px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.2s; display: inline-block; }
         .nb-btn-ghost:hover { color: #fff; border-color: rgba(255,255,255,0.35); background: rgba(255,255,255,0.06); }
         .nb-btn-solid { background: #a8d96b; color: #1a2010; border: none; border-radius: 100px; padding: 8px 20px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; transition: background 0.2s, transform 0.15s; display: inline-block; }
         .nb-btn-solid:hover { background: #c1e88d; transform: scale(1.04); }
+
+        /* PROFILE TRIGGER — Booking.com style: avatar circle + name + level inline */
         .nb-profile { position: relative; }
-        .nb-avatar { width: 36px; height: 36px; background: linear-gradient(135deg, #a8d96b, #5fa832); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #1a2010; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s, transform 0.15s; flex-shrink: 0; }
-        .nb-avatar:hover, .nb-avatar.open { border-color: rgba(168,217,107,0.6); transform: scale(1.06); }
-        .nb-dropdown { position: absolute; top: calc(100% + 10px); right: 0; width: 224px; background: #131918; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; box-shadow: 0 24px 64px rgba(0,0,0,0.6); padding: 8px; animation: dropIn 0.18s ease; overflow: hidden; }
+         .nb-profile-trigger { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.04); border: none; border-radius: 100px; padding: 5px 14px 5px 5px; cursor: pointer; transition: background 0.2s; }
+        .nb-profile-trigger:hover, .nb-profile-trigger.open { background: rgba(168,217,107,0.1); border-color: rgba(168,217,107,0.4); }
+        .nb-avatar { width: 34px; height: 34px; background: linear-gradient(135deg, #a8d96b, #5fa832); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #0f1410; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(168,217,107,0.25); }
+        .nb-profile-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+        .nb-profile-name { font-size: 13px; font-weight: 700; color: #fff; max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .nb-profile-level { font-size: 11px; color: #c1e88d; font-weight: 500; margin-top: 2px; }
+        .nb-profile-chevron { width: 14px; height: 14px; color: rgba(245,241,232,0.5); margin-left: 2px; transition: transform 0.25s; flex-shrink: 0; }
+        .nb-profile-trigger.open .nb-profile-chevron { transform: rotate(180deg); color: #c1e88d; }
+
+        /* Mobile-only avatar (without name beside) */
+        .nb-profile-trigger-mobile-only { display: none; }
+
+        .nb-dropdown { position: absolute; top: calc(100% + 12px); right: 0; width: 280px; background: linear-gradient(145deg, #0b2016, #091510); border: 1px solid rgba(168,217,107,0.18); border-radius: 18px; box-shadow: 0 28px 70px rgba(0,0,0,0.75), 0 0 0 1px rgba(168,217,107,0.06); padding: 8px; animation: dropIn 0.18s ease; overflow: hidden; }
         @keyframes dropIn { from { opacity: 0; transform: translateY(-8px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
-        .nb-dd-header { padding: 12px 14px 8px; border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 6px; }
-        .nb-dd-name { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .nb-dd-role { font-size: 11px; color: #a8d96b; text-transform: capitalize; font-weight: 500; }
-        .nb-dd-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-radius: 10px; color: rgba(240,237,232,0.7); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; transition: background 0.15s, color 0.15s; width: 100%; background: none; border: none; text-align: left; font-family: 'DM Sans', sans-serif; }
-        .nb-dd-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
+
+        .nb-dd-header { padding: 14px 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; }
+        .nb-dd-avatar-circle { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #a8d96b, #5fa832); display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 800; color: #0f1410; flex-shrink: 0; box-shadow: 0 0 0 3px rgba(168,217,107,0.3), 0 0 0 1px rgba(168,217,107,0.6); }
+        .nb-dd-info { flex: 1; min-width: 0; }
+        .nb-dd-name { font-size: 15px; font-weight: 700; color: #fff; line-height: 1.2; margin-bottom: 4px; word-break: break-word; }
+        .nb-dd-level-text { font-size: 13px; color: #c1e88d; font-weight: 500; line-height: 1.2; }
+
+        .nb-dd-sep-light { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 0 8px; }
+
+        .nb-dd-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; color: rgba(240,237,232,0.75); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; transition: background 0.15s, color 0.15s; width: 100%; background: none; border: none; text-align: left; font-family: 'DM Sans', sans-serif; }
+        .nb-dd-item:hover { background: rgba(168,217,107,0.08); color: #fff; }
         .nb-dd-item.danger:hover { background: rgba(220,60,60,0.12); color: #f87171; }
-        .nb-dd-sep { height: 1px; background: rgba(255,255,255,0.07); margin: 6px 0; }
-        .nb-dd-badge { background: #a8d96b; color: #0a0e0d; font-size: 10px; font-weight: 800; padding: 1px 7px; border-radius: 100px; }
+        .nb-dd-sep { height: 1px; background: rgba(255,255,255,0.06); margin: 6px 0; }
+        .nb-dd-list-prop { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; color: #a8d96b; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.15s; width: 100%; }
+        .nb-dd-list-prop:hover { background: rgba(168,217,107,0.1); }
 
         .nb-hamburger { display: none; background: none; border: none; cursor: pointer; padding: 6px; color: rgba(240,237,232,0.8); }
-        .nb-mobile-menu { position: fixed; inset: 0; background: #0a0e0d; z-index: 999; padding: 80px 24px 32px; display: flex; flex-direction: column; gap: 8px; animation: slideIn 0.22s ease; }
+        .nb-mobile-menu { position: fixed; inset: 0; background: #071009; z-index: 999; padding: 80px 24px 32px; display: flex; flex-direction: column; gap: 8px; animation: slideIn 0.22s ease; overflow-y: auto; }
         @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
-        .nb-mobile-link { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-radius: 14px; color: rgba(240,237,232,0.75); font-size: 18px; font-weight: 500; text-decoration: none; border: 1px solid rgba(255,255,255,0.07); transition: background 0.2s, color 0.2s; }
-        .nb-mobile-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
-        .nb-mobile-close { position: absolute; top: 18px; right: 20px; background: rgba(255,255,255,0.07); border: none; border-radius: 50%; width: 38px; height: 38px; color: #fff; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .nb-mobile-badge { background: #a8d96b; color: #0a0e0d; font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: 100px; }
+        .nb-mobile-link { display: block; padding: 16px 20px; border-radius: 14px; color: rgba(240,237,232,0.75); font-size: 16px; font-weight: 500; text-decoration: none; border: 1px solid rgba(168,217,107,0.08); transition: background 0.2s, color 0.2s; }
+        .nb-mobile-link:hover { background: rgba(168,217,107,0.06); color: #fff; }
+        .nb-mobile-link.highlight { border-color: rgba(168,217,107,0.3); color: #a8d96b; background: rgba(168,217,107,0.06); }
+        .nb-mobile-close { position: absolute; top: 18px; right: 20px; background: rgba(168,217,107,0.1); border: 1px solid rgba(168,217,107,0.2); border-radius: 50%; width: 38px; height: 38px; color: #a8d96b; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        .nb-mobile-user-card { background: rgba(168,217,107,0.06); border: 1px solid rgba(168,217,107,0.15); border-radius: 14px; padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; }
+        .nb-mobile-user-avatar { width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, #a8d96b, #5fa832); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #0f1410; font-size: 18px; flex-shrink: 0; box-shadow: 0 0 0 3px rgba(168,217,107,0.25); }
+        .nb-mobile-user-info { flex: 1; min-width: 0; }
+        .nb-mobile-user-name { font-weight: 700; color: #fff; font-size: 15px; word-break: break-word; }
+        .nb-mobile-user-level { color: #c1e88d; font-size: 13px; font-weight: 500; margin-top: 3px; }
 
         .page-wrap { min-height: 100vh; }
         .page-wrap.no-hero { padding-top: 66px; }
-        .nb-footer { border-top: 1px solid rgba(168,217,107,0.12); background: #0a0f0c; padding: 32px 32px 0; font-family: 'DM Sans', sans-serif; }
-        .nb-footer-inner { max-width: 1200px; margin: 0 auto 0; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; padding-bottom: 28px; }
+
+        .nb-footer { border-top: 1px solid rgba(168,217,107,0.1); background: #060e08; padding: 32px 32px 0; font-family: 'DM Sans', sans-serif; }
+        .nb-footer-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; padding-bottom: 28px; }
         .nb-footer-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
         .nb-footer-desc { font-size: 13px; color: rgba(240,237,232,0.4); line-height: 1.7; margin: 0 0 20px; max-width: 260px; }
         .nb-footer-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(168,217,107,0.08); border: 1px solid rgba(168,217,107,0.2); color: #a8d96b; font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 100px; letter-spacing: 0.06em; }
@@ -159,10 +175,25 @@ export default function Layout({ children }) {
         .nb-footer-link:hover { color: #fff; }
         .nb-footer-bottom { max-width: 1200px; margin: 0 auto; padding: 20px 0 28px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
         .nb-footer-bottom-text { font-size: 12px; color: rgba(240,237,232,0.25); }
-        .nb-footer-bottom-brand { font-size: 12px; color: rgba(168,217,107,0.5); font-weight: 600; letter-spacing: 0.04em; }
-        @media (max-width: 768px) { .nb-footer-inner { grid-template-columns: 1fr 1fr; gap: 28px; } .nb-footer-bottom { flex-direction: column; text-align: center; } }
+        .nb-footer-bottom-brand { font-size: 12px; color: rgba(168,217,107,0.5); font-weight: 600; }
+
+        @media (max-width: 1024px) {
+          .nb-profile-name { max-width: 100px; }
+        }
+        @media (max-width: 900px) {
+          /* On smaller screens, show only avatar (no name/level beside) to save space */
+          .nb-profile-text, .nb-profile-chevron { display: none; }
+          .nb-profile-trigger { padding: 4px; border-radius: 50%; border-color: transparent; background: transparent; }
+          .nb-profile-trigger:hover, .nb-profile-trigger.open { background: rgba(168,217,107,0.08); }
+        }
+        @media (max-width: 768px) {
+          .nb-links, .nb-list-btn { display: none; }
+          .nb-hamburger { display: flex; }
+          .nb { padding: 0 20px; }
+          .nb-footer-inner { grid-template-columns: 1fr 1fr; gap: 28px; }
+          .nb-footer-bottom { flex-direction: column; text-align: center; }
+        }
         @media (max-width: 480px) { .nb-footer-inner { grid-template-columns: 1fr; } }
-        @media (max-width: 768px) { .nb-links, .nb-auth { display: none; } .nb-hamburger { display: flex; } .nb { padding: 0 20px; } }
       `}</style>
 
       {/* NAVBAR */}
@@ -174,45 +205,49 @@ export default function Layout({ children }) {
               <span className="nb-logo-sub">Nepal Tours</span>
             </div>
           </Link>
-
           <div className="nb-spacer" />
-
           <ul className="nb-links">
             {navLinks.map(l => (
               <li key={l.to}>
                 <Link to={l.to} className={loc.pathname === l.to ? 'active' : ''}>{l.label}</Link>
               </li>
             ))}
-            {user && userLinks.map(l => (
-              <li key={l.to}>
-                <span className="nb-notif-link">
-                  <Link to={l.to} className={loc.pathname.startsWith(l.to) ? 'active' : ''}>{l.label}</Link>
-                  {l.badge > 0 && (
-                    <span className="nb-notif-badge">{l.badge > 9 ? '9+' : l.badge}</span>
-                  )}
-                </span>
-              </li>
-            ))}
           </ul>
-
           <div className="nb-auth">
+            <Link to="/agency-login" className="nb-list-btn">List your property</Link>
             {user ? (
               <div className="nb-profile" ref={profileRef}>
-                <div className={`nb-avatar ${profileOpen ? 'open' : ''}`} onClick={() => setProfileOpen(o => !o)} title={user.name || 'Profile'}>
-                  {(user.name || user.full_name || user.email || 'U')[0].toUpperCase()}
+                {/* Booking.com style: avatar + name + level + chevron all in one pill */}
+                <div className={`nb-profile-trigger ${profileOpen ? 'open' : ''}`} onClick={() => setProfileOpen(o => !o)}>
+                  <div className="nb-avatar">{initials}</div>
+                  <div className="nb-profile-text">
+                    <div className="nb-profile-name">{navDisplayName}</div>
+                    {user?.role === 'customer' && (
+                      <div className="nb-profile-level">{loyaltyLevel.name} Level {loyaltyLevel.level}</div>
+                    )}
+                  </div>
+                  <svg className="nb-profile-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 8l5 5 5-5"/>
+                  </svg>
                 </div>
+
                 {profileOpen && (
                   <div className="nb-dropdown">
                     <div className="nb-dd-header">
-                      <div className="nb-dd-name">{user.name || user.full_name || user.email}</div>
-                      <div className="nb-dd-role">{user.role || 'Customer'}</div>
+                      <div className="nb-dd-avatar-circle">{initials}</div>
+                      <div className="nb-dd-info">
+                        <div className="nb-dd-name">{fullName}</div>
+                        {user?.role === 'customer' && (
+                          <div className="nb-dd-level-text">{loyaltyLevel.name} Level {loyaltyLevel.level}</div>
+                        )}
+                      </div>
                     </div>
+                    <div className="nb-dd-sep-light" />
                     {ddLinks.map(l => (
-                      <Link key={l.to} className="nb-dd-item" to={l.to} onClick={close}>
-                        <span>{l.label}</span>
-                        {l.badge > 0 && <span className="nb-dd-badge">{l.badge > 9 ? '9+' : l.badge}</span>}
-                      </Link>
+                      <Link key={l.to} className="nb-dd-item" to={l.to} onClick={close}>{l.label}</Link>
                     ))}
+                    <div className="nb-dd-sep" />
+                    <Link className="nb-dd-list-prop" to="/agency-login" onClick={close}>List your property</Link>
                     <div className="nb-dd-sep" />
                     <button className="nb-dd-item danger" onClick={logout}>Log out</button>
                   </div>
@@ -237,21 +272,31 @@ export default function Layout({ children }) {
       {menuOpen && (
         <div className="nb-mobile-menu">
           <button className="nb-mobile-close" onClick={() => setMenuOpen(false)}>✕</button>
+          {user && (
+            <div className="nb-mobile-user-card">
+              <div className="nb-mobile-user-avatar">{initials}</div>
+              <div className="nb-mobile-user-info">
+                <div className="nb-mobile-user-name">{fullName}</div>
+                {user?.role === 'customer' && (
+                  <div className="nb-mobile-user-level">{loyaltyLevel.name} Level {loyaltyLevel.level}</div>
+                )}
+              </div>
+            </div>
+          )}
           {navLinks.map(l => (
             <Link key={l.to} className="nb-mobile-link" to={l.to} onClick={() => setMenuOpen(false)}>{l.label}</Link>
           ))}
-          {user && userLinks.map(l => (
-            <Link key={l.to} className="nb-mobile-link" to={l.to} onClick={() => setMenuOpen(false)}>
-              <span>{l.label}</span>
-              {l.badge > 0 && <span className="nb-mobile-badge">{l.badge > 9 ? '9+' : l.badge}</span>}
-            </Link>
-          ))}
+          <Link className="nb-mobile-link highlight" to="/agency-login" onClick={() => setMenuOpen(false)}>List your property</Link>
           {user && <Link className="nb-mobile-link" to="/profile" onClick={() => setMenuOpen(false)}>My Profile</Link>}
           {user && <Link className="nb-mobile-link" to="/dashboard" onClick={() => setMenuOpen(false)}>Dashboard</Link>}
+          {user?.role === 'customer' && <Link className="nb-mobile-link" to="/bookings" onClick={() => setMenuOpen(false)}>My Bookings</Link>}
+          {user?.role === 'customer' && <Link className="nb-mobile-link" to="/wishlist" onClick={() => setMenuOpen(false)}>Wishlist</Link>}
+          {user?.role === 'customer' && <Link className="nb-mobile-link" to="/rewards" onClick={() => setMenuOpen(false)}>My Rewards</Link>}
           {!user && <Link className="nb-mobile-link" to="/login" onClick={() => setMenuOpen(false)}>Log in</Link>}
           {!user && <Link className="nb-mobile-link" to="/signup" onClick={() => setMenuOpen(false)}>Sign up</Link>}
           {user && (
-            <button className="nb-mobile-link" style={{border:'none',color:'#f87171',cursor:'pointer',textAlign:'left',background:'rgba(248,113,113,0.07)',fontFamily:'inherit'}} onClick={() => { logout(); setMenuOpen(false); }}>
+            <button className="nb-mobile-link" style={{border:'1px solid rgba(248,113,113,0.15)', color:'#f87171', cursor:'pointer', textAlign:'left', background:'rgba(248,113,113,0.05)', fontFamily:'inherit'}}
+              onClick={() => { logout(); setMenuOpen(false); }}>
               Log out
             </button>
           )}
@@ -259,9 +304,7 @@ export default function Layout({ children }) {
       )}
 
       {/* PAGE CONTENT */}
-      <div className={`page-wrap ${isHome ? '' : 'no-hero'}`}>
-        {children}
-      </div>
+      <div className={`page-wrap ${isHome ? '' : 'no-hero'}`}>{children}</div>
 
       {/* FOOTER */}
       <footer className="nb-footer">
@@ -285,18 +328,18 @@ export default function Layout({ children }) {
             <Link className="nb-footer-link" to="/login">Log In</Link>
             <Link className="nb-footer-link" to="/signup">Sign Up</Link>
             <Link className="nb-footer-link" to="/bookings">My Bookings</Link>
-            <Link className="nb-footer-link" to="/wishlist">Wishlist</Link>
+            <Link className="nb-footer-link" to="/rewards">My Rewards</Link>
           </div>
           <div>
-            <div className="nb-footer-col-title">Help</div>
+            <div className="nb-footer-col-title">For Agencies</div>
+            <Link className="nb-footer-link" to="/agency-login">Agency Login</Link>
+            <Link className="nb-footer-link" to="/agency-signup">List your property</Link>
             <Link className="nb-footer-link" to="/support">Support</Link>
-            <Link className="nb-footer-link" to="/agency-signup">List as Agency</Link>
-            <Link className="nb-footer-link" to="/notifications">Notifications</Link>
           </div>
         </div>
         <div className="nb-footer-bottom">
-          <span className="nb-footer-bottom-text">© {new Date().getFullYear()} Safe Journey Planner · Made with ❤️ in Nepal</span>
-          <span className="nb-footer-bottom-brand">🏔 Safe Journey Nepal</span>
+          <span className="nb-footer-bottom-text">© {new Date().getFullYear()} Safe Journey Planner · Made with care in Nepal</span>
+          <span className="nb-footer-bottom-brand">Safe Journey Nepal</span>
         </div>
       </footer>
     </>

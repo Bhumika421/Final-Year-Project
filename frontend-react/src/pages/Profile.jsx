@@ -152,7 +152,7 @@ export default function Profile() {
 
               {!editing ? (
                 <button className="pf-btn" onClick={() => { setEditing(true); setMsg({text:'',type:''}); }}>
-                  ✏️ Edit Profile
+                   Edit Profile
                 </button>
               ) : (
                 <form onSubmit={saveProfile}>

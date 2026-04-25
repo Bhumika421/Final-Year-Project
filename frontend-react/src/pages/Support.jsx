@@ -35,7 +35,7 @@ export default function Support() {
   useEffect(() => { loadMy(); }, []);
 
   function statusColor(s) {
-    if (s === 'resolved') return '#a8d96b';
+    if (s === 'resolved' || s === 'answered' || s === 'closed') return '#a8d96b';
     if (s === 'open') return '#f59e0b';
     return '#94a3b8';
   }
@@ -83,7 +83,7 @@ export default function Support() {
 
       <div className="sp-wrap">
         <div className="sp-head">
-          <div className="sp-head-tag">💬 Help Center</div>
+          <div className="sp-head-tag"> Help Center</div>
           <h1>Customer Support</h1>
           <p>Submit a ticket and our team will get back to you as soon as possible.</p>
         </div>

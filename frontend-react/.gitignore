@@ -1,0 +1,18 @@
+# Dependencies
+frontend-react/node_modules/
+node_modules/
+backend-php/vendor/
+
+# Environment & sensitive config
+frontend-react/.env
+frontend-react/.env.local
+backend-php/src/config/config.php
+
+# Uploads
+backend-php/public/uploads/
+
+# Build
+frontend-react/dist/
+
+# Vite cache
+frontend-react/node_modules/.vite/

@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { api, saveToken, setAuthToken } from '../api/client';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation} from 'react-router-dom';
 import { mdiEye, mdiEyeOff } from '@mdi/js';
 
 export default function Login() {
   const nav = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -29,8 +30,9 @@ export default function Login() {
       localStorage.setItem('user', JSON.stringify(user));
       window.dispatchEvent(new Event('auth-change'));
 
-      // Hard redirect — state race condition avoid garcha
-      window.location.href = '/dashboard';
+      
+      const from = location.state?.from || '/dashboard';
+      nav(from, { replace: true });
 
     } catch (e) {
       setMsg(e?.response?.data?.error || e?.response?.data?.message || 'Login failed. Check your email and password.');

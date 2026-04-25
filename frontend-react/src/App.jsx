@@ -14,7 +14,6 @@ import TourDetail from './pages/TourDetail.jsx';
 import Wishlist from './pages/Wishlist.jsx';
 import Bookings from './pages/Bookings.jsx';
 import Payment from './pages/Payment.jsx';
-import EsewaSuccess from './pages/EsewaSuccess.jsx';
 import Notifications from './pages/Notifications.jsx';
 import Support from './pages/Support.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -25,9 +24,7 @@ import Agency from './pages/Agency.jsx';
 
 import RequireAdmin from './components/RequireAdmin.jsx';
 import RequireAgency from './components/RequireAgency.jsx';
-
-
-
+import Rewards from './pages/Rewards';
 
 export default function App() {
   return (
@@ -51,14 +48,12 @@ export default function App() {
         <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/payment/:bookingId" element={<Payment />} />
-        <Route path="/payment/esewa-success" element={<EsewaSuccess />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/support" element={<Support />} />
 
-        
-
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="/agency" element={<RequireAgency><Agency /></RequireAgency>} />
+        <Route path="/rewards" element={<Rewards />} />
 
         <Route path="*" element={<Home />} />
       </Routes>

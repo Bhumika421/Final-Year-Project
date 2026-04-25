@@ -9,6 +9,7 @@ export default function Wishlist() {
   const [msg, setMsg] = useState('');
 
   async function load() {
+    if (!getToken()) { nav('/login', { state: { from: `/tours/${id}` } }); return; }
     if (!getToken()) { nav('/login'); return; }
     try {
       const res = await api.get('/api/wishlist');
@@ -78,7 +79,7 @@ export default function Wishlist() {
           </div>
         ) : items.length === 0 ? (
           <div className="wl-empty">
-            <span className="wl-empty-icon">🗺️</span>
+            <span className="wl-empty-icon"></span>
             <h3>Nothing saved yet</h3>
             <p>Browse tours and tap "Add to Wishlist" to save them here.</p>
             <Link to="/tours" className="wl-empty-btn">Browse Tours</Link>

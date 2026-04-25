@@ -2,9 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 
-function npr(n) {
-  const v = Number(n || 0);
-  return new Intl.NumberFormat('en-NP', { style: 'currency', currency: 'NPR', maximumFractionDigits: 0 }).format(v);
+const API_BASE = 'http://localhost/safe-journey-planner/backend-php/public';
+
+function usd(n) {
+  return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function getImageUrl(image_url, id) {
+  if (!image_url) return `https://picsum.photos/seed/tour${id}/800/500`;
+  if (image_url.startsWith('http')) return image_url;
+  return API_BASE + image_url;
 }
 
 export default function Tours() {
@@ -119,7 +126,7 @@ export default function Tours() {
 
       <div className="tr-wrap">
         <div className="tr-head">
-          <div className="tr-tag">🏔 Explore Nepal</div>
+          <div className="tr-tag">Explore Nepal</div>
           <h1 className="tr-title">Browse Tours</h1>
           <p className="tr-sub">Only verified & approved packages are listed here.</p>
         </div>
@@ -155,11 +162,11 @@ export default function Tours() {
               </select>
             </div>
             <div>
-              <div className="tr-label">Min Price (USD)</div>
+              <div className="tr-label">Min Price ($)</div>
               <input className="tr-input" value={filters.minPrice} onChange={e => set('minPrice', e.target.value)} placeholder="0" />
             </div>
             <div>
-              <div className="tr-label">Max Price (USD)</div>
+              <div className="tr-label">Max Price ($)</div>
               <input className="tr-input" value={filters.maxPrice} onChange={e => set('maxPrice', e.target.value)} placeholder="9999" />
             </div>
           </div>
@@ -186,7 +193,12 @@ export default function Tours() {
             <div className="tr-grid">
               {sorted.map(t => (
                 <div key={t.id} className="tr-card">
-                  <img className="tr-card-img" src={t.image_url || `https://picsum.photos/seed/tour${t.id}/800/500`} alt={t.title} />
+                  <img
+                    className="tr-card-img"
+                    src={getImageUrl(t.image_url, t.id)}
+                    alt={t.title}
+                    onError={e => { e.target.src = `https://picsum.photos/seed/tour${t.id}/800/500`; }}
+                  />
                   <div className="tr-card-body">
                     <div className="tr-card-title">{t.title}</div>
                     <div className="tr-card-meta">
@@ -197,7 +209,7 @@ export default function Tours() {
                     </div>
                     <div className="tr-card-bottom">
                       <div>
-                        <div className="tr-price">{npr(t.price_usd)}</div>
+                        <div className="tr-price">{usd(t.price_usd)}</div>
                         <div className="tr-price-sub">per person</div>
                       </div>
                       <Link className="tr-view-btn" to={`/tours/${t.id}`}>View →</Link>
