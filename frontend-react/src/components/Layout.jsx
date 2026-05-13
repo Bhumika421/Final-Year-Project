@@ -6,12 +6,9 @@ function getToken() {
   return localStorage.getItem('sjp_token') || null;
 }
 
-// FIX: User is only valid if BOTH token and user data exist.
-// Stale 'user' in localStorage without a token means user is logged out.
 function getUser() {
   const token = getToken();
   if (!token) {
-    // No token = not logged in. Clean up any stale user data too.
     if (localStorage.getItem('user')) {
       localStorage.removeItem('user');
     }
@@ -75,9 +72,21 @@ export default function Layout({ children }) {
   const isHome = loc.pathname === '/';
   const close = () => setProfileOpen(false);
 
+  //  Hide navbar & footer for these pages
+  const noLayoutPages = [
+    '/login',
+    '/signup',
+    '/forgot-password',
+    '/admin-login',
+    '/admin-setup',
+    '/agency-signup',
+    '/agency-login',
+  ];
   const isAgencyPage = loc.pathname.startsWith('/agency');
   const isAdminPage  = loc.pathname.startsWith('/admin');
-  if (isAgencyPage || isAdminPage) return <>{children}</>;
+  const isNoLayout   = noLayoutPages.includes(loc.pathname);
+
+  if (isAgencyPage || isAdminPage || isNoLayout) return <>{children}</>;
 
   const navLinks = [
     { to: '/',        label: 'Home' },
@@ -101,7 +110,6 @@ export default function Layout({ children }) {
   const initials = fullName[0].toUpperCase();
   const navDisplayName = user?.full_name || user?.name || user?.email?.split('@')[0] || 'User';
 
-  // FIX: Only render logged-in UI if BOTH token AND user data exist
   const isAuthenticated = !!getToken() && !!user;
 
   return (
@@ -190,9 +198,7 @@ export default function Layout({ children }) {
         .nb-footer-bottom-text { font-size: 12px; color: rgba(240,237,232,0.25); }
         .nb-footer-bottom-brand { font-size: 12px; color: rgba(168,217,107,0.5); font-weight: 600; }
 
-        @media (max-width: 1024px) {
-          .nb-profile-name { max-width: 100px; }
-        }
+        @media (max-width: 1024px) { .nb-profile-name { max-width: 100px; } }
         @media (max-width: 900px) {
           .nb-profile-text, .nb-profile-chevron { display: none; }
           .nb-profile-trigger { padding: 4px; border-radius: 50%; border-color: transparent; background: transparent; }
@@ -241,7 +247,6 @@ export default function Layout({ children }) {
                     <path d="M5 8l5 5 5-5"/>
                   </svg>
                 </div>
-
                 {profileOpen && (
                   <div className="nb-dropdown">
                     <div className="nb-dd-header">
@@ -306,7 +311,8 @@ export default function Layout({ children }) {
           {!isAuthenticated && <Link className="nb-mobile-link" to="/login" onClick={() => setMenuOpen(false)}>Log in</Link>}
           {!isAuthenticated && <Link className="nb-mobile-link" to="/signup" onClick={() => setMenuOpen(false)}>Sign up</Link>}
           {isAuthenticated && (
-            <button className="nb-mobile-link" style={{border:'1px solid rgba(248,113,113,0.15)', color:'#f87171', cursor:'pointer', textAlign:'left', background:'rgba(248,113,113,0.05)', fontFamily:'inherit'}}
+            <button className="nb-mobile-link"
+              style={{border:'1px solid rgba(248,113,113,0.15)', color:'#f87171', cursor:'pointer', textAlign:'left', background:'rgba(248,113,113,0.05)', fontFamily:'inherit'}}
               onClick={() => { logout(); setMenuOpen(false); }}>
               Log out
             </button>
