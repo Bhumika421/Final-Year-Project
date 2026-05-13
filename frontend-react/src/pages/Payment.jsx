@@ -3,7 +3,6 @@ import { api, getToken } from '../api/client';
 import { useParams, useNavigate } from 'react-router-dom';
 
 const NPR_RATE = 133;
-const RATES = { NPR: 133, USD: 1, EUR: 0.92, INR: 83.5, GBP: 0.79 };
 
 function extractPayPalApprovalUrl(data) {
   if (!data || typeof data !== 'object') return '';
@@ -34,8 +33,8 @@ function extractPayPalApprovalUrl(data) {
 function formatNPR(usd) {
   return 'NPR ' + new Intl.NumberFormat('en-NP').format(Math.round(Number(usd) * NPR_RATE));
 }
-function convertAmount(usd, to) {
-  const rate = RATES[to] || 1;
+function convertAmount(usd, to, ratesObj) {
+  const rate = ratesObj[to] || 1;
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(Number(usd) * rate);
 }
 
@@ -96,19 +95,20 @@ export default function Payment() {
   const [convertTo, setConvertTo] = useState('NPR');
   const [showConverter, setShowConverter] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  // FIX 1: useState component BHITRA
+  const [rates, setRates] = useState({ NPR: 133, USD: 1, EUR: 0.92, INR: 83.5, GBP: 0.79 });
 
   async function load() {
     if (!getToken()) { setErr('Please login first.'); setLoading(false); return; }
     try {
       const res = await api.get(`/api/bookings/${bookingId}`);
-      setBooking(res.data.booking);
-      if (res.data.booking.status === 'paid') setPaid(true);
-       if (!paymentMethodDone) {
-       const methodMap = { khalti: 'Khalti', esewa: 'eSewa', paypal: 'PayPal', card: 'Card', online: 'Online' };
-        setPaymentMethodDone(methodMap[res.data.booking.payment_method] || 'Online');
-      }
-      if (!paymentRef) {
-        setPaymentRef(res.data.booking.payment_ref || res.data.booking.provider_ref || '');
+      const b = res.data.booking;
+      setBooking(b);
+      if (b.status === 'paid') {
+        setPaid(true);
+        const methodMap = { khalti: 'Khalti', esewa: 'eSewa', paypal: 'PayPal', card: 'Card', online: 'Online' };
+        setPaymentMethodDone(prev => prev || methodMap[b.payment_method] || 'Online');
+        setPaymentRef(prev => prev || b.payment_ref || b.provider_ref || '');
       }
     } catch (e) {
       setErr(e?.response?.data?.error || 'Booking not found');
@@ -117,14 +117,27 @@ export default function Payment() {
     }
   }
 
-  // FIX: Scroll to top whenever paid state becomes true
+  // FIX 2: Live rates useEffect — component level ma, sahi thau ma
   useEffect(() => {
-    if (paid) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [paid]);
+    fetch('https://api.frankfurter.app/latest?from=USD&to=NPR,EUR,INR,GBP')
+      .then(r => r.json())
+      .then(data => {
+        if (data?.rates) {
+          setRates({
+            USD: 1,
+            NPR: data.rates.NPR || 133,
+            EUR: data.rates.EUR || 0.92,
+            INR: data.rates.INR || 83.5,
+            GBP: data.rates.GBP || 0.79,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
-  useEffect(() => { load(); }, [bookingId]);
+  useEffect(() => {
+    if (paid) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [paid]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -142,7 +155,12 @@ export default function Payment() {
     const pidx = params.get('pidx');
     const status = params.get('status');
 
+    if (!paypalCancelled && !paypalOrderId && !pidx && !esewaData && !esewaTxn && !esewaRefId && !esewaOid && !callbackMethod) {
+      load();
+      return;
+    }
 
+    load();
 
     if (paypalCancelled === '1') {
       setPortalLoading(false);
@@ -165,7 +183,6 @@ export default function Payment() {
           setPaymentRef(String(captureRes.data.provider_ref || paypalOrderId));
           setPaymentMethodDone('PayPal');
           setPaid(true);
-          await load();
           window.history.replaceState({}, '', `/payment/${bookingId}`);
         } catch (e) {
           setErr(e?.response?.data?.error || 'PayPal capture failed. Please try again.');
@@ -185,7 +202,6 @@ export default function Payment() {
         window.history.replaceState({}, '', `/payment/${bookingId}`);
         return;
       }
-
       (async () => {
         setPaying(true);
         try {
@@ -207,7 +223,6 @@ export default function Payment() {
           setPaymentGatewayRef(String(verifyRes.data.ref_id || esewaRefId || ''));
           setPaymentMethodDone('eSewa');
           setPaid(true);
-          await load();
           window.history.replaceState({}, '', `/payment/${bookingId}`);
         } catch (e) {
           setErr(e?.response?.data?.error || 'eSewa verification failed. Please try again.');
@@ -238,17 +253,38 @@ export default function Payment() {
           idempotency_key: `khalti-${bookingId}-${pidx}`,
         });
 
-        if (verifyRes?.data?.ok || verifyRes?.data?.booking_id || verifyRes?.data?.status === 'paid') {
+        const isSuccess =
+          verifyRes?.data?.ok ||
+          verifyRes?.data?.booking_id ||
+          verifyRes?.data?.status === 'paid' ||
+          verifyRes?.data?.status === 'Completed' ||
+          verifyRes?.data?.payment_status === 'Completed' ||
+          verifyRes?.status === 200;
+
+        if (isSuccess) {
           setEarnedPoints(verifyRes.data.earned_points || 0);
-          setPaymentRef(String(verifyRes.data.provider_ref || pidx || ''));
-          setPaymentGatewayRef(String(verifyRes.data.transaction_id || ''));
+          setPaymentRef(String(verifyRes.data.provider_ref || verifyRes.data.pidx || pidx || ''));
+          setPaymentGatewayRef(String(verifyRes.data.transaction_id || params.get('transaction_id') || ''));
           setPaymentMethodDone('Khalti');
           setPaid(true);
-          await load();
+          window.history.replaceState({}, '', `/payment/${bookingId}`);
+        } else {
+          setErr('Khalti payment verification failed. Please contact support.');
           window.history.replaceState({}, '', `/payment/${bookingId}`);
         }
       } catch (e) {
+        try {
+          const checkRes = await api.get(`/api/bookings/${bookingId}`);
+          if (checkRes.data.booking?.status === 'paid') {
+            setPaymentMethodDone('Khalti');
+            setPaymentRef(checkRes.data.booking.payment_ref || checkRes.data.booking.provider_ref || pidx || '');
+            setPaid(true);
+            window.history.replaceState({}, '', `/payment/${bookingId}`);
+            return;
+          }
+        } catch {}
         setErr(e?.response?.data?.error || 'Khalti verification ma error aayo.');
+        window.history.replaceState({}, '', `/payment/${bookingId}`);
       } finally {
         setPaying(false);
       }
@@ -318,13 +354,11 @@ export default function Payment() {
         setPortalLoading(true);
         form.submit();
       } else {
-        // Card simulated flow
         const payload = { booking_id: Number(bookingId), method, ...card };
         const res = await api.post('/api/payments/pay', payload);
         setEarnedPoints(res.data.earned_points || 0);
         setPaymentMethodDone('Card');
         setPaid(true);
-        await load();
         setPaying(false);
       }
     } catch (e) {
@@ -378,7 +412,6 @@ export default function Payment() {
         </div>
       )}
       <div className="p-wrap">
-
         <div className="p-header">
           <div className="p-header-eyebrow">Secure Checkout</div>
           <h1 className="p-header-title">{paid ? 'Booking Confirmed' : 'Complete Payment'}</h1>
@@ -408,7 +441,6 @@ export default function Payment() {
               <div className="p-success-row"><span>Amount Paid</span><b style={{color:'#a8d96b'}}>{formatNPR(booking?.total_usd)}</b></div>
             </div>
             <div className="p-success-btns">
-              {/* FIX: scrollTo top before navigating */}
               <button className="p-btn-solid" onClick={() => { window.scrollTo(0,0); nav('/bookings'); }}>View My Bookings</button>
               <button className="p-btn-outline" onClick={() => { window.scrollTo(0,0); nav('/tours'); }}>Browse More Tours</button>
             </div>
@@ -464,15 +496,16 @@ export default function Payment() {
                 {showConverter && (
                   <div className="p-converter">
                     <div className="p-converter-tabs">
-                      {Object.keys(RATES).map(c => (
+                      {/* FIX 3: RATES hoina, rates state use garnus */}
+                      {Object.keys(rates).map(c => (
                         <button key={c} className={`p-converter-tab ${convertTo === c ? 'active' : ''}`} onClick={() => setConvertTo(c)}>{c}</button>
                       ))}
                     </div>
                     <div className="p-converter-result">
                       <span className="p-converter-currency">{convertTo}</span>
-                      <span className="p-converter-amount">{convertAmount(booking?.total_usd, convertTo)}</span>
+                      <span className="p-converter-amount">{convertAmount(booking?.total_usd, convertTo, rates)}</span>
                     </div>
-                    <div className="p-converter-note">Indicative rates · Not for financial advice</div>
+                    <div className="p-converter-note">Live rates · Not for financial advice</div>
                   </div>
                 )}
               </div>

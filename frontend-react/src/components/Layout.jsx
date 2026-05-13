@@ -2,11 +2,26 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { getLoyaltyLevel, getBookingsCount } from '../utils/loyalty';
 
-function getUser() {
-  try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; }
-}
 function getToken() {
   return localStorage.getItem('sjp_token') || null;
+}
+
+// FIX: User is only valid if BOTH token and user data exist.
+// Stale 'user' in localStorage without a token means user is logged out.
+function getUser() {
+  const token = getToken();
+  if (!token) {
+    // No token = not logged in. Clean up any stale user data too.
+    if (localStorage.getItem('user')) {
+      localStorage.removeItem('user');
+    }
+    return null;
+  }
+  try {
+    return JSON.parse(localStorage.getItem('user') || 'null');
+  } catch {
+    return null;
+  }
 }
 
 export default function Layout({ children }) {
@@ -27,7 +42,7 @@ export default function Layout({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!getToken()) {
+    if (!getToken() || !user) {
       setCompletedBookings(0);
       return;
     }
@@ -67,7 +82,7 @@ export default function Layout({ children }) {
   const navLinks = [
     { to: '/',        label: 'Home' },
     { to: '/tours',   label: 'Tours' },
-    { to: '/wishlist', label: 'Wishlist' },
+    { to: '/wishlist',      label: 'Wishlist' },
     { to: '/support', label: 'Support' },
   ];
 
@@ -84,8 +99,10 @@ export default function Layout({ children }) {
   const loyaltyLevel = getLoyaltyLevel(completedBookings);
   const fullName = user?.full_name || user?.name || user?.email || 'User';
   const initials = fullName[0].toUpperCase();
-  // Show only first name in navbar to keep it compact (or full if short)
   const navDisplayName = user?.full_name || user?.name || user?.email?.split('@')[0] || 'User';
+
+  // FIX: Only render logged-in UI if BOTH token AND user data exist
+  const isAuthenticated = !!getToken() && !!user;
 
   return (
     <>
@@ -116,9 +133,8 @@ export default function Layout({ children }) {
         .nb-btn-solid { background: #a8d96b; color: #1a2010; border: none; border-radius: 100px; padding: 8px 20px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; transition: background 0.2s, transform 0.15s; display: inline-block; }
         .nb-btn-solid:hover { background: #c1e88d; transform: scale(1.04); }
 
-        /* PROFILE TRIGGER — Booking.com style: avatar circle + name + level inline */
         .nb-profile { position: relative; }
-         .nb-profile-trigger { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.04); border: none; border-radius: 100px; padding: 5px 14px 5px 5px; cursor: pointer; transition: background 0.2s; }
+        .nb-profile-trigger { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(168,217,107,0.18); border-radius: 100px; padding: 5px 14px 5px 5px; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
         .nb-profile-trigger:hover, .nb-profile-trigger.open { background: rgba(168,217,107,0.1); border-color: rgba(168,217,107,0.4); }
         .nb-avatar { width: 34px; height: 34px; background: linear-gradient(135deg, #a8d96b, #5fa832); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #0f1410; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(168,217,107,0.25); }
         .nb-profile-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
@@ -127,25 +143,22 @@ export default function Layout({ children }) {
         .nb-profile-chevron { width: 14px; height: 14px; color: rgba(245,241,232,0.5); margin-left: 2px; transition: transform 0.25s; flex-shrink: 0; }
         .nb-profile-trigger.open .nb-profile-chevron { transform: rotate(180deg); color: #c1e88d; }
 
-        /* Mobile-only avatar (without name beside) */
-        .nb-profile-trigger-mobile-only { display: none; }
-
-        .nb-dropdown { position: absolute; top: calc(100% + 12px); right: 0; width: 280px; background: linear-gradient(145deg, #0b2016, #091510); border: 1px solid rgba(168,217,107,0.18); border-radius: 18px; box-shadow: 0 28px 70px rgba(0,0,0,0.75), 0 0 0 1px rgba(168,217,107,0.06); padding: 8px; animation: dropIn 0.18s ease; overflow: hidden; }
+        .nb-dropdown { position: absolute; top: calc(100% + 10px); right: 0; width: 230px; background: linear-gradient(145deg, #0b2016, #091510); border: 1px solid rgba(168,217,107,0.18); border-radius: 16px; box-shadow: 0 24px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(168,217,107,0.06); padding: 6px; animation: dropIn 0.18s ease; overflow: hidden; }
         @keyframes dropIn { from { opacity: 0; transform: translateY(-8px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
-        .nb-dd-header { padding: 14px 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; }
-        .nb-dd-avatar-circle { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #a8d96b, #5fa832); display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 800; color: #0f1410; flex-shrink: 0; box-shadow: 0 0 0 3px rgba(168,217,107,0.3), 0 0 0 1px rgba(168,217,107,0.6); }
+        .nb-dd-header { padding: 10px 10px; margin-bottom: 4px; display: flex; align-items: center; gap: 12px; }
+        .nb-dd-avatar-circle { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #a8d96b, #5fa832); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: #0f1410; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(168,217,107,0.3), 0 0 0 1px rgba(168,217,107,0.6); }
         .nb-dd-info { flex: 1; min-width: 0; }
-        .nb-dd-name { font-size: 15px; font-weight: 700; color: #fff; line-height: 1.2; margin-bottom: 4px; word-break: break-word; }
-        .nb-dd-level-text { font-size: 13px; color: #c1e88d; font-weight: 500; line-height: 1.2; }
+        .nb-dd-name { font-size: 14px; font-weight: 700; color: #fff; line-height: 1.2; margin-bottom: 2px; word-break: break-word; }
+        .nb-dd-level-text { font-size: 12px; color: #c1e88d; font-weight: 500; line-height: 1.2; }
 
-        .nb-dd-sep-light { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 0 8px; }
+        .nb-dd-sep-light { height: 1px; background: rgba(255,255,255,0.06); margin: 2px 0 4px; }
 
-        .nb-dd-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; color: rgba(240,237,232,0.75); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; transition: background 0.15s, color 0.15s; width: 100%; background: none; border: none; text-align: left; font-family: 'DM Sans', sans-serif; }
+        .nb-dd-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; color: rgba(240,237,232,0.75); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; transition: background 0.15s, color 0.15s; width: 100%; background: none; border: none; text-align: left; font-family: 'DM Sans', sans-serif; }
         .nb-dd-item:hover { background: rgba(168,217,107,0.08); color: #fff; }
         .nb-dd-item.danger:hover { background: rgba(220,60,60,0.12); color: #f87171; }
-        .nb-dd-sep { height: 1px; background: rgba(255,255,255,0.06); margin: 6px 0; }
-        .nb-dd-list-prop { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; color: #a8d96b; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.15s; width: 100%; }
+        .nb-dd-sep { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 0; }
+        .nb-dd-list-prop { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; color: #a8d96b; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.15s; width: 100%; }
         .nb-dd-list-prop:hover { background: rgba(168,217,107,0.1); }
 
         .nb-hamburger { display: none; background: none; border: none; cursor: pointer; padding: 6px; color: rgba(240,237,232,0.8); }
@@ -181,7 +194,6 @@ export default function Layout({ children }) {
           .nb-profile-name { max-width: 100px; }
         }
         @media (max-width: 900px) {
-          /* On smaller screens, show only avatar (no name/level beside) to save space */
           .nb-profile-text, .nb-profile-chevron { display: none; }
           .nb-profile-trigger { padding: 4px; border-radius: 50%; border-color: transparent; background: transparent; }
           .nb-profile-trigger:hover, .nb-profile-trigger.open { background: rgba(168,217,107,0.08); }
@@ -215,9 +227,8 @@ export default function Layout({ children }) {
           </ul>
           <div className="nb-auth">
             <Link to="/agency-login" className="nb-list-btn">List your property</Link>
-            {user ? (
+            {isAuthenticated ? (
               <div className="nb-profile" ref={profileRef}>
-                {/* Booking.com style: avatar + name + level + chevron all in one pill */}
                 <div className={`nb-profile-trigger ${profileOpen ? 'open' : ''}`} onClick={() => setProfileOpen(o => !o)}>
                   <div className="nb-avatar">{initials}</div>
                   <div className="nb-profile-text">
@@ -272,7 +283,7 @@ export default function Layout({ children }) {
       {menuOpen && (
         <div className="nb-mobile-menu">
           <button className="nb-mobile-close" onClick={() => setMenuOpen(false)}>✕</button>
-          {user && (
+          {isAuthenticated && (
             <div className="nb-mobile-user-card">
               <div className="nb-mobile-user-avatar">{initials}</div>
               <div className="nb-mobile-user-info">
@@ -287,14 +298,14 @@ export default function Layout({ children }) {
             <Link key={l.to} className="nb-mobile-link" to={l.to} onClick={() => setMenuOpen(false)}>{l.label}</Link>
           ))}
           <Link className="nb-mobile-link highlight" to="/agency-login" onClick={() => setMenuOpen(false)}>List your property</Link>
-          {user && <Link className="nb-mobile-link" to="/profile" onClick={() => setMenuOpen(false)}>My Profile</Link>}
-          {user && <Link className="nb-mobile-link" to="/dashboard" onClick={() => setMenuOpen(false)}>Dashboard</Link>}
-          {user?.role === 'customer' && <Link className="nb-mobile-link" to="/bookings" onClick={() => setMenuOpen(false)}>My Bookings</Link>}
-          {user?.role === 'customer' && <Link className="nb-mobile-link" to="/wishlist" onClick={() => setMenuOpen(false)}>Wishlist</Link>}
-          {user?.role === 'customer' && <Link className="nb-mobile-link" to="/rewards" onClick={() => setMenuOpen(false)}>My Rewards</Link>}
-          {!user && <Link className="nb-mobile-link" to="/login" onClick={() => setMenuOpen(false)}>Log in</Link>}
-          {!user && <Link className="nb-mobile-link" to="/signup" onClick={() => setMenuOpen(false)}>Sign up</Link>}
-          {user && (
+          {isAuthenticated && <Link className="nb-mobile-link" to="/profile" onClick={() => setMenuOpen(false)}>My Profile</Link>}
+          {isAuthenticated && <Link className="nb-mobile-link" to="/dashboard" onClick={() => setMenuOpen(false)}>Dashboard</Link>}
+          {isAuthenticated && user?.role === 'customer' && <Link className="nb-mobile-link" to="/bookings" onClick={() => setMenuOpen(false)}>My Bookings</Link>}
+          {isAuthenticated && user?.role === 'customer' && <Link className="nb-mobile-link" to="/wishlist" onClick={() => setMenuOpen(false)}>Wishlist</Link>}
+          {isAuthenticated && user?.role === 'customer' && <Link className="nb-mobile-link" to="/rewards" onClick={() => setMenuOpen(false)}>Loyalty Program</Link>}
+          {!isAuthenticated && <Link className="nb-mobile-link" to="/login" onClick={() => setMenuOpen(false)}>Log in</Link>}
+          {!isAuthenticated && <Link className="nb-mobile-link" to="/signup" onClick={() => setMenuOpen(false)}>Sign up</Link>}
+          {isAuthenticated && (
             <button className="nb-mobile-link" style={{border:'1px solid rgba(248,113,113,0.15)', color:'#f87171', cursor:'pointer', textAlign:'left', background:'rgba(248,113,113,0.05)', fontFamily:'inherit'}}
               onClick={() => { logout(); setMenuOpen(false); }}>
               Log out
@@ -328,7 +339,7 @@ export default function Layout({ children }) {
             <Link className="nb-footer-link" to="/login">Log In</Link>
             <Link className="nb-footer-link" to="/signup">Sign Up</Link>
             <Link className="nb-footer-link" to="/bookings">My Bookings</Link>
-            <Link className="nb-footer-link" to="/rewards">My Rewards</Link>
+            <Link className="nb-footer-link" to="/rewards">Loyalty Program</Link>
           </div>
           <div>
             <div className="nb-footer-col-title">For Agencies</div>

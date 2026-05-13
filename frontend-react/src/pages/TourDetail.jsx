@@ -91,7 +91,15 @@ export default function TourDetail() {
   const isLoggedIn = !!getToken();
 
   useEffect(() => {
-    api.get(`/api/tours/${id}`).then(res => setTour(res.data.tour)).catch(() => {});
+    if (!id || id === 'undefined') {
+      nav('/tours');
+      return;
+    }
+    api.get(`/api/tours/${id}`)
+      .then(res => setTour(res.data.tour))
+      .catch(() => {
+        nav('/tours');
+      });
   }, [id]);
 
   useEffect(() => {
@@ -176,9 +184,18 @@ export default function TourDetail() {
     }
   }
 
-  if (!tour) return (
+ if (!tour) return (
     <div style={{ maxWidth: 900, margin: '80px auto', padding: '0 24px', fontFamily: 'DM Sans, sans-serif', color: '#fff', textAlign: 'center' }}>
-      Loading tour...
+      {!id || id === 'undefined' ? (
+        <>
+          <p>Tour not found.</p>
+          <button onClick={() => nav('/tours')} style={{ background: '#a8d96b', color: '#1a2010', border: 'none', borderRadius: 100, padding: '10px 24px', marginTop: 16, cursor: 'pointer', fontFamily: 'DM Sans', fontWeight: 600 }}>
+            Browse Tours
+          </button>
+        </>
+      ) : (
+        'Loading tour...'
+      )}
     </div>
   );
 
