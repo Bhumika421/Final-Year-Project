@@ -39,6 +39,12 @@ $router->add('POST', '/api/auth/register-agency', function() { auth_register_age
 $router->add('POST', '/api/auth/register-admin',  function() { auth_register_admin(); });
 $router->add('POST', '/api/auth/login',           function() { auth_login(); });
 $router->add('POST', '/api/auth/google-login',    function() { auth_google_login(); });
+$router->add('POST', '/api/auth/forgot-password', function() { auth_forgot_password(); });
+$router->add('POST', '/api/auth/reset-password',  function() { auth_reset_password(); });
+$router->add('POST', '/api/auth/forgot-password', function() { auth_forgot_password(); });
+$router->add('POST', '/api/auth/verify-otp',      function() { auth_verify_otp(); });
+$router->add('POST', '/api/auth/reset-password',  function() { auth_reset_password(); });
+$router->add('POST', '/api/auth/verify-otp', function() { auth_verify_otp(); });
 $router->add('GET',  '/api/auth/me', function() {
   $user = require_auth();
   auth_me($user);

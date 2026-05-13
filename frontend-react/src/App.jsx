@@ -26,6 +26,9 @@ import RequireAdmin from './components/RequireAdmin.jsx';
 import RequireAgency from './components/RequireAgency.jsx';
 import Rewards from './pages/Rewards';
 
+import ForgotPassword from './pages/ForgotPassword';
+
+
 export default function App() {
   return (
     <Layout>
@@ -54,6 +57,10 @@ export default function App() {
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="/agency" element={<RequireAgency><Agency /></RequireAgency>} />
         <Route path="/rewards" element={<Rewards />} />
+
+
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+    
 
         <Route path="*" element={<Home />} />
       </Routes>

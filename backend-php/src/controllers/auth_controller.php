@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+date_default_timezone_set('Asia/Kathmandu'); 
 
 require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/../utils.php';
@@ -298,4 +299,145 @@ function auth_google_login(): void {
             'role'      => $user['role'] ?? 'customer',
         ]
     ]);
+}
+
+
+function auth_forgot_password(): void {
+    date_default_timezone_set('Asia/Kathmandu');
+    $body  = json_decode(file_get_contents('php://input'), true) ?? [];
+    $email = strtolower(trim((string)($body['email'] ?? '')));
+
+    if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        json_response(['error' => 'Valid email required'], 422);
+        return;
+    }
+
+    $pdo = db();
+
+    $stmt = $pdo->prepare("SELECT id, full_name FROM users WHERE email = ? AND role = 'customer' LIMIT 1");
+    $stmt->execute([$email]);
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        json_response(['ok' => true, 'message' => 'If this email exists, an OTP has been sent.']);
+        return;
+    }
+
+    // Generate 6-digit OTP
+    $otp       = str_pad((string)random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+    $expiresAt = date('Y-m-d H:i:s', time() + 600); // 10 minutes
+
+    // Delete old tokens
+    $pdo->prepare("DELETE FROM password_resets WHERE email = ?")->execute([$email]);
+
+    // Save OTP as token
+    $pdo->prepare("INSERT INTO password_resets (email, token, expires_at) VALUES (?, ?, ?)")
+        ->execute([$email, $otp, $expiresAt]);
+
+    // Send email
+    try {
+        require_once __DIR__ . '/../../vendor/autoload.php';
+        $config = require __DIR__ . '/../config/config.php';
+        $mail   = new PHPMailer\PHPMailer\PHPMailer(true);
+
+        $mail->isSMTP();
+        $mail->Host       = $config['mail']['host'];
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $config['mail']['username'];
+        $mail->Password   = $config['mail']['password'];
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = $config['mail']['port'];
+
+        $mail->setFrom($config['mail']['from'], $config['mail']['from_name']);
+        $mail->addAddress($email, $user['full_name']);
+        $mail->Subject = 'Your OTP Code — Safe Journey Planner';
+        $mail->isHTML(true);
+        $mail->Body = "
+            <div style='font-family: sans-serif; max-width: 480px; margin: auto; background:#131918; padding:32px; border-radius:16px;'>
+                <h2 style='color:#a8d96b; margin-bottom:8px;'>Password Reset OTP</h2>
+                <p style='color:#ccc;'>Hi {$user['full_name']},</p>
+                <p style='color:#ccc;'>Your OTP code is:</p>
+                <div style='background:#1e2a1a; border:2px solid #a8d96b; border-radius:12px; padding:24px; text-align:center; margin:20px 0;'>
+                    <span style='font-size:42px; font-weight:700; letter-spacing:12px; color:#a8d96b;'>{$otp}</span>
+                </div>
+                <p style='color:#999; font-size:13px;'>This OTP expires in <strong>10 minutes</strong>. Do not share it with anyone.</p>
+                <p style='color:#999; font-size:13px;'>If you didn't request this, ignore this email.</p>
+            </div>
+        ";
+        $mail->send();
+    } catch (Exception $e) {
+        json_response(['error' => 'Failed to send OTP. Try again.'], 500);
+        return;
+    }
+
+    json_response(['ok' => true, 'message' => 'OTP sent to your email!']);
+}
+
+function auth_verify_otp(): void {
+    date_default_timezone_set('Asia/Kathmandu');
+    $body  = json_decode(file_get_contents('php://input'), true) ?? [];
+    $email = strtolower(trim((string)($body['email'] ?? '')));
+    $otp   = trim((string)($body['otp'] ?? ''));
+
+    if (!$email || !$otp) {
+        json_response(['error' => 'Email and OTP required'], 422);
+        return;
+    }
+
+    $pdo = db();
+    $stmt = $pdo->prepare("SELECT * FROM password_resets WHERE email = ? AND token = ? AND expires_at > NOW() LIMIT 1");
+    $stmt->execute([$email, $otp]);
+    $reset = $stmt->fetch();
+
+    if (!$reset) {
+        json_response(['error' => 'Invalid or expired OTP.'], 400);
+        return;
+    }
+
+    json_response(['ok' => true, 'message' => 'OTP verified!']);
+}
+
+function auth_reset_password(): void {
+    date_default_timezone_set('Asia/Kathmandu');
+    $body     = json_decode(file_get_contents('php://input'), true) ?? [];
+    $email    = strtolower(trim((string)($body['email'] ?? '')));
+    $otp      = trim((string)($body['otp'] ?? ''));
+    $password = (string)($body['password'] ?? '');
+    $confirm  = (string)($body['confirm_password'] ?? '');
+
+    if (!$email || !$otp || !$password) {
+        json_response(['error' => 'All fields required'], 422);
+        return;
+    }
+
+    if ($password !== $confirm) {
+        json_response(['error' => 'Passwords do not match'], 422);
+        return;
+    }
+
+    if (strlen($password) < 8 || !preg_match('/[A-Z]/', $password) || !preg_match('/[a-z]/', $password) || !preg_match('/\d/', $password) || !preg_match('/[^A-Za-z0-9]/', $password)) {
+        json_response(['error' => 'Weak password. Use 8+ chars with upper, lower, number, special.'], 422);
+        return;
+    }
+
+    $pdo = db();
+
+    // Verify OTP again
+    $stmt = $pdo->prepare("SELECT * FROM password_resets WHERE email = ? AND token = ? AND expires_at > NOW() LIMIT 1");
+    $stmt->execute([$email, $otp]);
+    $reset = $stmt->fetch();
+
+    if (!$reset) {
+        json_response(['error' => 'Invalid or expired OTP.'], 400);
+        return;
+    }
+
+    // Update password
+    $hash = password_hash($password, PASSWORD_BCRYPT);
+    $pdo->prepare("UPDATE users SET password_hash = ? WHERE email = ?")->execute([$hash, $email]);
+
+    // Delete used OTP
+    $pdo->prepare("DELETE FROM password_resets WHERE email = ?")->execute([$email]);
+
+    json_response(['ok' => true, 'message' => 'Password reset successfully!']);
 }
