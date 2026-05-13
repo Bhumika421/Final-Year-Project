@@ -38,6 +38,7 @@ $router->add('POST', '/api/auth/register',       function() { auth_register(); }
 $router->add('POST', '/api/auth/register-agency', function() { auth_register_agency(); });
 $router->add('POST', '/api/auth/register-admin',  function() { auth_register_admin(); });
 $router->add('POST', '/api/auth/login',           function() { auth_login(); });
+$router->add('POST', '/api/auth/google-login',    function() { auth_google_login(); });
 $router->add('GET',  '/api/auth/me', function() {
   $user = require_auth();
   auth_me($user);
@@ -57,6 +58,7 @@ $router->add('GET',  '/api/admin/tours/pending',      function() { $admin = requ
 $router->add('POST', '/api/admin/tours/{id}/decide',  function($params) { $admin = require_admin(); admin_tour_decide($params, $admin); });
 $router->add('GET',  '/api/admin/agencies/pending',   function() { $admin = require_admin(); admin_agencies_pending(); });
 $router->add('POST', '/api/admin/agencies/{id}/verify', function($params) { $admin = require_admin(); admin_agency_verify($params); });
+
 $router->add('GET', '/api/admin/users', function() { 
   $admin = require_admin(); 
   admin_users_list(); 

@@ -168,23 +168,20 @@ function auth_login(): void {
 
 function auth_update(array $currentUser): void {
   $data = read_json_body();
-$uid = (int)($currentUser['uid'] ?? $currentUser['id']);
+  $uid = (int)($currentUser['uid'] ?? $currentUser['id']);
 
   $updates = [];
   $params = [];
 
-  // Update full_name
   if (!empty($data['full_name'])) {
     $updates[] = 'full_name = ?';
     $params[] = trim((string)$data['full_name']);
   }
 
-  // Update password
   if (!empty($data['new_password'])) {
     $current_pass = (string)($data['current_password'] ?? '');
     if ($current_pass === '') json_response(['error' => 'Current password required'], 422);
 
-    // Verify current password
     $stmt = db()->prepare('SELECT password_hash FROM users WHERE id=? LIMIT 1');
     $stmt->execute([$uid]);
     $row = $stmt->fetch();
@@ -207,12 +204,10 @@ $uid = (int)($currentUser['uid'] ?? $currentUser['id']);
   $sql = 'UPDATE users SET ' . implode(', ', $updates) . ' WHERE id=?';
   db()->prepare($sql)->execute($params);
 
-  // Return updated user
   $stmt = db()->prepare('SELECT id, full_name, email, role, verification_status, business_name FROM users WHERE id=? LIMIT 1');
   $stmt->execute([$uid]);
   $user = $stmt->fetch();
 
-  // Update localStorage user on frontend via response
   json_response([
     'ok' => true,
     'message' => 'Profile updated successfully.',
@@ -229,4 +224,78 @@ $uid = (int)($currentUser['uid'] ?? $currentUser['id']);
 
 function auth_me(array $currentUser): void {
   json_response(['ok'=>true, 'user'=>$currentUser]);
+}
+
+function auth_google_login(): void {
+    $body     = json_decode(file_get_contents('php://input'), true) ?? [];
+    $userInfo = $body['user_info'] ?? null;
+
+    if (!$userInfo || empty($userInfo['sub'])) {
+        json_response(['success' => false, 'message' => 'Invalid Google user info'], 400);
+        return;
+    }
+
+    $googleId = $userInfo['sub'];
+    $email    = $userInfo['email'] ?? '';
+    $fullName = $userInfo['name'] ?? '';
+    $avatar   = $userInfo['picture'] ?? '';
+
+    if (!$email) {
+        json_response(['success' => false, 'message' => 'Email not provided by Google'], 400);
+        return;
+    }
+
+    $pdo = db();
+
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? OR google_id = ?");
+    $stmt->execute([$email, $googleId]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user) {
+        $stmt = $pdo->prepare("
+            INSERT INTO users (full_name, email, google_id, avatar, role, verification_status, created_at)
+            VALUES (?, ?, ?, ?, 'customer', 'verified', NOW())
+        ");
+        $stmt->execute([$fullName, $email, $googleId, $avatar]);
+        $userId = $pdo->lastInsertId();
+        $user = [
+            'id'        => $userId,
+            'full_name' => $fullName,
+            'email'     => $email,
+            'role'      => 'customer',
+        ];
+    } else {
+        $pdo->prepare("
+            UPDATE users SET
+                google_id = COALESCE(google_id, ?),
+                avatar    = COALESCE(avatar, ?),
+                full_name = COALESCE(full_name, ?)
+            WHERE id = ?
+        ")->execute([$googleId, $avatar, $fullName, $user['id']]);
+
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->execute([$user['id']]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    $config = require __DIR__ . '/../config/config.php';
+    $ttl = (int)$config['app']['jwt_ttl_minutes'] * 60;
+    $jwtPayload = [
+        'uid'  => (int)$user['id'],
+        'role' => (string)($user['role'] ?? 'customer'),
+        'iat'  => time(),
+        'exp'  => time() + $ttl,
+    ];
+    $token = jwt_sign($jwtPayload, $config['app']['jwt_secret']);
+
+    json_response([
+        'success' => true,
+        'token'   => $token,
+        'user'    => [
+            'id'        => (int)$user['id'],
+            'full_name' => $user['full_name'] ?? $fullName,
+            'email'     => $user['email'],
+            'role'      => $user['role'] ?? 'customer',
+        ]
+    ]);
 }
