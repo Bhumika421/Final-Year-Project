@@ -12,14 +12,14 @@ function toNPR(usd) {
 }
 
 const REWARD_CARDS = [
-  { title: '10% off all tours',       desc: 'Automatic discount on every verified tour package',       level: 1 },
-  { title: 'Email support',           desc: 'Standard customer support for all your bookings',         level: 1 },
-  { title: '15% off all tours',       desc: 'Complete 5 bookings to unlock Level 2',                    level: 2 },
-  { title: 'Free airport pickup',     desc: 'Complimentary pickup service at Level 2',                  level: 2 },
-  { title: 'Priority booking',        desc: 'Get early access to popular tours at Level 2',             level: 2 },
-  { title: '20% off all tours',       desc: 'Complete 10 bookings to unlock Level 3',                   level: 3 },
-  { title: 'Dedicated concierge',     desc: 'Personal travel concierge for Elite members',              level: 3 },
-  { title: 'Free itinerary custom',   desc: 'Fully customize your tour itinerary at Level 3',           level: 3 },
+  { title: '10% off all tours',     desc: 'Automatic discount on every verified tour package', level: 1 },
+  { title: 'Email support',         desc: 'Standard customer support for all your bookings',   level: 1 },
+  { title: '15% off all tours',     desc: 'Complete 5 bookings to unlock Level 2',              level: 2 },
+  { title: 'Free airport pickup',   desc: 'Complimentary pickup service at Level 2',            level: 2 },
+  { title: 'Priority booking',      desc: 'Get early access to popular tours at Level 2',       level: 2 },
+  { title: '20% off all tours',     desc: 'Complete 10 bookings to unlock Level 3',             level: 3 },
+  { title: 'Dedicated concierge',   desc: 'Personal travel concierge for Elite members',        level: 3 },
+  { title: 'Free itinerary custom', desc: 'Fully customize your tour itinerary at Level 3',     level: 3 },
 ];
 
 export default function Home() {
@@ -29,12 +29,12 @@ export default function Home() {
 
   const [featuredTours, setFeaturedTours] = useState([]);
   const [toursLoading, setToursLoading] = useState(true);
-
-  // Loyalty state
   const [loyalty, setLoyalty] = useState(null);
   const [loyaltyLoading, setLoyaltyLoading] = useState(true);
 
-  
+  // ✅ NEW — real destination tour counts
+  const [destCounts, setDestCounts] = useState({});
+
   useEffect(() => {
     api.get('/api/tours?limit=6')
       .then(res => setFeaturedTours(res.data.items || []))
@@ -52,24 +52,41 @@ export default function Home() {
     loadLoyalty();
   }, []);
 
-  // Fallback hardcoded tours — shown if DB empty
+  // ✅ NEW — fetch real counts for each destination
+  useEffect(() => {
+    const names = ['Chitwan','Kathmandu','Lumbini','Pokhara','Everest Region','Annapurna Region','Mustang','Nagarkot','Bandipur'];
+    Promise.all(
+      names.map(name =>
+        api.get(`/api/tours?q=${encodeURIComponent(name)}&limit=100`)
+          .then(res => ({ name, count: (res.data.items || []).length }))
+          .catch(() => ({ name, count: 0 }))
+      )
+    ).then(results => {
+      const counts = {};
+      results.forEach(r => { counts[r.name] = r.count; });
+      setDestCounts(counts);
+    });
+  }, []);
+
   const featured = useMemo(() => [
-    { title: 'Kathmandu Heritage Tour',  place: 'Kathmandu Valley',        tag: 'Durbar Squares - Temples - Culture', seed: 'kathmandu', days: '3 Days', price: '$120' },
-    { title: 'Pokhara Lakeside Escape',  place: 'Pokhara',                 tag: 'Phewa Lake - Sunrise - Relax',       seed: 'pokhara',   days: '4 Days', price: '$180' },
-    { title: 'Chitwan Jungle Safari',    place: 'Chitwan National Park',   tag: 'Wildlife - Safari - Tharu Culture',  seed: 'chitwan',   days: '3 Days', price: '$210' },
-    { title: 'Everest View Journey',     place: 'Everest Region',          tag: 'Mountains - Trek - Views',           seed: 'everest',   days: '7 Days', price: '$450' },
-    { title: 'Annapurna Base Camp',      place: 'Annapurna Region',        tag: 'Trek - Glacier - Sunrise',           seed: 'annapurna', days: '10 Days', price: '$580' },
-    { title: 'Lumbini Pilgrimage',       place: 'Lumbini',                 tag: 'Buddhism - Peace - Heritage',        seed: 'lumbini',   days: '2 Days', price: '$90' },
+    { title: 'Kathmandu Heritage Tour', place: 'Kathmandu Valley',      tag: 'Durbar Squares - Temples - Culture', seed: 'kathmandu', days: '3 Days',  price: '$120' },
+    { title: 'Pokhara Lakeside Escape', place: 'Pokhara',               tag: 'Phewa Lake - Sunrise - Relax',       seed: 'pokhara',   days: '4 Days',  price: '$180' },
+    { title: 'Chitwan Jungle Safari',   place: 'Chitwan National Park', tag: 'Wildlife - Safari - Tharu Culture',  seed: 'chitwan',   days: '3 Days',  price: '$210' },
+    { title: 'Everest View Journey',    place: 'Everest Region',        tag: 'Mountains - Trek - Views',           seed: 'everest',   days: '7 Days',  price: '$450' },
+    { title: 'Annapurna Base Camp',     place: 'Annapurna Region',      tag: 'Trek - Glacier - Sunrise',           seed: 'annapurna', days: '10 Days', price: '$580' },
+    { title: 'Lumbini Pilgrimage',      place: 'Lumbini',               tag: 'Buddhism - Peace - Heritage',        seed: 'lumbini',   days: '2 Days',  price: '$90'  },
   ], []);
 
   const destinations = useMemo(() => [
-    { name: 'Chitwan',    subtitle: 'Jungle & Wildlife',     tours: 24, seed: 'chitwan-jungle',   q: 'Chitwan'   },
-    { name: 'Kathmandu',  subtitle: 'Heritage & Culture',    tours: 56, seed: 'kathmandu-temple', q: 'Kathmandu' },
-    { name: 'Lumbini',    subtitle: 'Sacred Birthplace',     tours: 12, seed: 'lumbini-peace',    q: 'Lumbini'   },
-    { name: 'Pokhara',    subtitle: 'Lakes & Mountains',     tours: 38, seed: 'pokhara-lake',     q: 'Pokhara'   },
-    { name: 'Bhaktapur',  subtitle: 'Medieval Architecture', tours: 18, seed: 'bhaktapur-city',   q: 'Bhaktapur' },
-    { name: 'Nagarkot',   subtitle: 'Himalayan Sunrise',     tours: 14, seed: 'nagarkot-hills',   q: 'Nagarkot'  },
-    { name: 'Bandipur',   subtitle: 'Hilltop Village',       tours: 9,  seed: 'bandipur-village', q: 'Bandipur'  },
+    { name: 'Chitwan',          subtitle: 'Jungle & Wildlife',   img: 'https://i.pinimg.com/736x/1c/48/3d/1c483d4c9e539c4b45fd5a77d4f0d3c9.jpg', q: 'Chitwan',          boxHeight: 600 },
+    { name: 'Kathmandu',        subtitle: 'Heritage & Culture',  img: 'https://i.pinimg.com/736x/c8/cd/78/c8cd78e8ca4413c84ef235332d5a7bec.jpg', q: 'Kathmandu',        boxHeight: 350 },
+    { name: 'Lumbini',          subtitle: 'Sacred Birthplace',   img: 'https://i.pinimg.com/1200x/0f/6f/8b/0f6f8babbc63e287f543ec4be3af82d3.jpg', q: 'Lumbini',          boxHeight: 350 },
+    { name: 'Pokhara',          subtitle: 'Lakes & Mountains',   img: 'https://i.pinimg.com/736x/f0/1d/cb/f01dcbaab9f97ecf7a95b46889ca7653.jpg', q: 'Pokhara',          boxHeight: 250 },
+    { name: 'Everest Region',   subtitle: 'Roof of the World',   img: 'https://i.pinimg.com/736x/c3/80/ca/c380ca4f26978c96dca135d889e5c670.jpg', q: 'Everest Region',   boxHeight: 250 },
+    { name: 'Annapurna Region', subtitle: 'Himalayan Trekking',  img: 'https://i.pinimg.com/736x/1d/eb/0a/1deb0a3c55405e49337240074975159c.jpg', q: 'Annapurna Region', boxHeight: 300 },
+    { name: 'Mustang',          subtitle: 'Desert Kingdom',      img: 'https://i.pinimg.com/736x/e2/77/70/e277704ee7404063263ca26dd95ab8b3.jpg', q: 'Mustang',          boxHeight: 300 },
+    { name: 'Nagarkot',         subtitle: 'Himalayan Sunrise',   img: 'https://i.pinimg.com/736x/51/81/6a/51816afc4b81cd117ace07316574aac1.jpg', q: 'Nagarkot',         boxHeight: 300 },
+    { name: 'Bandipur',         subtitle: 'Hilltop Village',     img: 'https://i.pinimg.com/1200x/c3/6d/55/c36d55f232723f0eb2a07115c1bcc984.jpg', q: 'Bandipur',         boxHeight: 350},
   ], []);
 
   function onSearch(e) {
@@ -159,8 +176,7 @@ export default function Home() {
         .hp-dest-card:hover { transform: translateY(-5px); box-shadow: 0 20px 48px rgba(0,0,0,0.55); }
         .hp-dest-card:hover .hp-dest-img { transform: scale(1.07); }
         .hp-dest-card:first-child { grid-row: span 2; }
-        .hp-dest-img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.45s ease; min-height: 200px; }
-        .hp-dest-card:first-child .hp-dest-img { min-height: 432px; }
+        .hp-dest-img { width: 100%; object-fit: cover; display: block; transition: transform 0.45s ease; }
         .hp-dest-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(5,10,8,0.88) 0%, rgba(5,10,8,0.25) 55%, transparent 100%); }
         .hp-dest-info { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px 22px; }
         .hp-dest-name { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: #fff; line-height: 1.2; margin-bottom: 4px; }
@@ -204,7 +220,7 @@ export default function Home() {
         .hp-rew-card.unlocked .hp-rew-lvl { background: rgba(168,217,107,0.14); color: #a8d96b; }
         .hp-rew-card.locked .hp-rew-lvl { background: rgba(255,255,255,0.05); color: rgba(240,237,232,0.28); border: 1px solid rgba(255,255,255,0.08); }
         @media (max-width: 1024px) { .hp-rewards-grid { grid-template-columns: repeat(3, 1fr); } }
-        @media (max-width: 768px) { .hp-dest-grid { grid-template-columns: repeat(2, 1fr); } .hp-dest-card:first-child { grid-row: span 1; } .hp-dest-card:first-child .hp-dest-img { min-height: 200px; } .hp-dest-card:first-child .hp-dest-name { font-size: 22px; } .hp-rewards-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) { .hp-dest-grid { grid-template-columns: repeat(2, 1fr); } .hp-dest-card:first-child { grid-row: span 1; } .hp-dest-card:first-child .hp-dest-name { font-size: 22px; } .hp-rewards-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 640px) { .hp-stats { flex-direction: column; } .hp-stat { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); } .hp-stat:last-child { border-bottom: none; } .hp-carousel-btn { display: none; } .hp-dest-grid { grid-template-columns: 1fr 1fr; gap: 10px; } .hp-rewards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
       `}</style>
 
@@ -212,7 +228,7 @@ export default function Home() {
       <section className="hp-hero">
         <div className="hp-hero-bg" />
         <div className="hp-hero-inner">
-          <div className="hp-eyebrow"><span></span> Nepal's Most Trusted Tour Platform</div>
+          <div className="hp-eyebrow">Nepal's Most Trusted Tour Platform</div>
           <h1 className="hp-title">Discover<br /><span>Nepal's</span> Magic</h1>
           <p className="hp-subtitle">Explore verified tours from trusted agencies. From Himalayan peaks to jungle safaris - your next adventure starts here.</p>
           <form onSubmit={onSearch} className="hp-search">
@@ -248,7 +264,6 @@ export default function Home() {
         <div className="hp-carousel-wrap">
           <button className="hp-carousel-btn prev" onClick={() => scroll(-1)}>‹</button>
           <div className="hp-carousel" ref={carouselRef}>
-
             {toursLoading && [1,2,3,4].map(i => (
               <div key={i} className="hp-card-skeleton">
                 <div className="hp-skel-img" />
@@ -269,12 +284,7 @@ export default function Home() {
                 <div key={t.id} className="hp-card" onClick={() => nav(`/tours/${t.id}`)}>
                   <div className="hp-card-img-wrap">
                     {imgSrc ? (
-                      <img
-                        className="hp-card-img"
-                        src={imgSrc}
-                        alt={t.title}
-                        onError={e => { e.target.style.display = 'none'; }}
-                      />
+                      <img className="hp-card-img" src={imgSrc} alt={t.title} onError={e => { e.target.style.display = 'none'; }} />
                     ) : (
                       <div style={{height:'190px', background:'rgba(168,217,107,0.04)', display:'flex', alignItems:'center', justifyContent:'center'}}>
                         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(168,217,107,0.2)" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -289,9 +299,7 @@ export default function Home() {
                     <div className="hp-card-footer">
                       <div>
                         <div className="hp-card-days">{t.duration_days} Days</div>
-                        <div className="hp-card-price">
-                          from NPR {new Intl.NumberFormat('en-NP').format(Math.round(Number(t.price_usd) * 133))}
-                        </div>
+                        <div className="hp-card-price">from NPR {new Intl.NumberFormat('en-NP').format(Math.round(Number(t.price_usd) * 133))}</div>
                       </div>
                       <span className="hp-card-btn">Explore</span>
                     </div>
@@ -300,7 +308,6 @@ export default function Home() {
               );
             })}
 
-           
             {!toursLoading && featuredTours.length === 0 && featured.map((t) => (
               <div key={t.title} className="hp-card" onClick={() => nav(`/tours?q=${encodeURIComponent(t.place)}`)}>
                 <div className="hp-card-img-wrap">
@@ -321,7 +328,6 @@ export default function Home() {
                 </div>
               </div>
             ))}
-
           </div>
           <button className="hp-carousel-btn next" onClick={() => scroll(1)}>›</button>
         </div>
@@ -339,13 +345,28 @@ export default function Home() {
           </div>
           <div className="hp-dest-grid">
             {destinations.map((d) => (
-              <div key={d.name} className="hp-dest-card" onClick={() => nav(`/tours?q=${encodeURIComponent(d.q)}`)}>
-                <img className="hp-dest-img" src={`https://picsum.photos/seed/${d.seed}/800/600`} alt={d.name} />
+              <div
+                key={d.name}
+                className="hp-dest-card"
+                onClick={() => nav(`/destinations/${d.name.toLowerCase()}`)}
+              >
+                <img
+                  className="hp-dest-img"
+                  src={d.img}
+                  alt={d.name}
+                  style={{ height: `${d.boxHeight}px` }}
+                  onError={e => { e.target.src = `https://picsum.photos/seed/${d.name}/800/600`; }}
+                />
                 <div className="hp-dest-overlay" />
                 <div className="hp-dest-info">
                   <div className="hp-dest-name">{d.name}</div>
                   <div className="hp-dest-subtitle">{d.subtitle}</div>
-                  <div className="hp-dest-pill">{d.tours} tours</div>
+                  {/* ✅ Real tour count from DB */}
+                  <div className="hp-dest-pill">
+                    {destCounts[d.name] !== undefined
+                      ? `${destCounts[d.name]} tours`
+                      : '...'}
+                  </div>
                 </div>
               </div>
             ))}

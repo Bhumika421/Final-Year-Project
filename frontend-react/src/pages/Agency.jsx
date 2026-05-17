@@ -764,7 +764,25 @@ async function uploadImages() {
                   <div className="ag-form-section">Basic Info</div>
                   <div className="ag-form-row2">
                     <div className="ag-field"><label>Tour Title *</label><input className="ag-input" value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} placeholder="e.g. Everest Base Camp Trek" required /></div>
-                    <div className="ag-field"><label>Destination *</label><input className="ag-input" value={form.destination} onChange={e => setForm(f => ({...f, destination: e.target.value}))} placeholder="e.g. Solukhumbu, Nepal" required /></div>
+                    <div className="ag-field">
+                        <label>Destination *</label>
+                        <select className="ag-input" value={form.destination} onChange={e => setForm(f => ({...f, destination: e.target.value}))} required>
+                          <option value="">Select destination</option>
+                          <option value="Kathmandu">Kathmandu</option>
+                          <option value="Pokhara">Pokhara</option>
+                          <option value="Chitwan">Chitwan</option>
+                          <option value="Lumbini">Lumbini</option>
+                          <option value="Bhaktapur">Bhaktapur</option>
+                          <option value="Nagarkot">Nagarkot</option>
+                          <option value="Bandipur">Bandipur</option>
+                          <option value="Everest Region">Everest Region</option>
+                          <option value="Annapurna Region">Annapurna Region</option>
+                          <option value="Mustang">Mustang</option>
+                          <option value="Ilam">Ilam</option>
+                          <option value="Rara">Rara</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
                   </div>
                   <div className="ag-form-section">Details</div>
                   <div className="ag-form-row3">
