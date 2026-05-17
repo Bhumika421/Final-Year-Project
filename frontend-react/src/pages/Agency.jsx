@@ -392,31 +392,50 @@ export default function Agency() {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
     setPreviews(prev => prev.filter((_, i) => i !== index));
   }
-  async function uploadImages() {
-    if (!selectedFiles.length) return [];
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      selectedFiles.forEach(file => formData.append('images[]', file));
-      const res = await api.post('/api/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      return res.data.urls || [];
-    } catch (ex) { setErr(ex?.response?.data?.error || "Upload failed"); return []; }
-    finally { setUploading(false); }
+async function uploadImages() {
+  if (!selectedFiles.length) return [];
+  setUploading(true);
+  setErr('');
+  try {
+    const formData = new FormData();
+    selectedFiles.forEach(file => formData.append('images[]', file));
+    const res = await api.post('/api/upload/images', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    if (!res.data.urls || res.data.urls.length === 0) {
+      setErr('Upload failed — no URLs returned.');
+      return [];
+    }
+    return res.data.urls;
+  } catch (ex) {
+    const errMsg = ex?.response?.data?.error || 'Image upload failed. Check file size and format.';
+    setErr(errMsg);
+    return [];
+  } finally {
+    setUploading(false);
   }
+}
 
   async function createTour(e) {
-    e.preventDefault();
-    setErr(""); setSubmitting(true);
-    try {
-      let imageUrl = form.image_url;
-      let imagesJson = null;
-      if (selectedFiles.length > 0) {
-        const urls = await uploadImages();
-        if (urls.length > 0) {
-          imageUrl = urls[0];
-          imagesJson = JSON.stringify(urls);
-        }
+  e.preventDefault();
+  setErr(""); setSubmitting(true);
+  try {
+    let imageUrl = form.image_url;
+    let imagesJson = null;
+    if (selectedFiles.length > 0) {
+      const urls = await uploadImages();
+      if (!urls || urls.length === 0) {
+        setSubmitting(false);
+        return;
       }
+      imageUrl = urls[0];
+      imagesJson = JSON.stringify(urls);
+    }
+    if (!imageUrl) {
+      setErr("Please upload an image or provide an image URL.");
+      setSubmitting(false);
+      return;
+    }
       await api.post("/api/agency/tours", {
         ...form,
         image_url: imageUrl,

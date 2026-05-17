@@ -1,24 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { fetchLoyaltyStatus, LOYALTY_LEVELS, getLoyaltyLevel, getNextLevel } from '../utils/loyalty';
-import { getToken } from '../api/client';
+import { fetchLoyaltyStatus, getLoyaltyLevel, getNextLevel } from '../utils/loyalty';
+import { getToken, api } from '../api/client';
 
 const USD_TO_NPR = 133;
+const BACKEND = 'http://localhost/safe-journey-planner/backend-php/public';
+
 function toNPR(usd) {
   const num = Number(usd.replace('$', ''));
   return 'NPR ' + new Intl.NumberFormat('en-NP').format(num * USD_TO_NPR);
 }
 
-// Tour-specific benefits per level (Option B — discount + perks)
 const REWARD_CARDS = [
-  // Level 1 benefits
   { title: '10% off all tours',       desc: 'Automatic discount on every verified tour package',       level: 1 },
   { title: 'Email support',           desc: 'Standard customer support for all your bookings',         level: 1 },
-  // Level 2 benefits
   { title: '15% off all tours',       desc: 'Complete 5 bookings to unlock Level 2',                    level: 2 },
   { title: 'Free airport pickup',     desc: 'Complimentary pickup service at Level 2',                  level: 2 },
   { title: 'Priority booking',        desc: 'Get early access to popular tours at Level 2',             level: 2 },
-  // Level 3 benefits
   { title: '20% off all tours',       desc: 'Complete 10 bookings to unlock Level 3',                   level: 3 },
   { title: 'Dedicated concierge',     desc: 'Personal travel concierge for Elite members',              level: 3 },
   { title: 'Free itinerary custom',   desc: 'Fully customize your tour itinerary at Level 3',           level: 3 },
@@ -29,16 +27,24 @@ export default function Home() {
   const [q, setQ] = useState('');
   const carouselRef = useRef(null);
 
+  const [featuredTours, setFeaturedTours] = useState([]);
+  const [toursLoading, setToursLoading] = useState(true);
+
   // Loyalty state
   const [loyalty, setLoyalty] = useState(null);
   const [loyaltyLoading, setLoyaltyLoading] = useState(true);
 
+  
+  useEffect(() => {
+    api.get('/api/tours?limit=6')
+      .then(res => setFeaturedTours(res.data.items || []))
+      .catch(() => {})
+      .finally(() => setToursLoading(false));
+  }, []);
+
   useEffect(() => {
     async function loadLoyalty() {
-      if (!getToken()) {
-        setLoyaltyLoading(false);
-        return;
-      }
+      if (!getToken()) { setLoyaltyLoading(false); return; }
       const data = await fetchLoyaltyStatus();
       setLoyalty(data);
       setLoyaltyLoading(false);
@@ -46,6 +52,7 @@ export default function Home() {
     loadLoyalty();
   }, []);
 
+  // Fallback hardcoded tours — shown if DB empty
   const featured = useMemo(() => [
     { title: 'Kathmandu Heritage Tour',  place: 'Kathmandu Valley',        tag: 'Durbar Squares - Temples - Culture', seed: 'kathmandu', days: '3 Days', price: '$120' },
     { title: 'Pokhara Lakeside Escape',  place: 'Pokhara',                 tag: 'Phewa Lake - Sunrise - Relax',       seed: 'pokhara',   days: '4 Days', price: '$180' },
@@ -77,16 +84,11 @@ export default function Home() {
     }
   }
 
-  // Derive loyalty display data
   const completedBookings = loyalty?.completed_bookings ?? 0;
   const currentLevelData = getLoyaltyLevel(completedBookings);
   const nextLevelData = getNextLevel(completedBookings);
   const isLoggedIn = !!getToken();
-
-  // Progress calculation
-  const progressPct = nextLevelData
-    ? Math.min(100, (completedBookings / nextLevelData.minBookings) * 100)
-    : 100;
+  const progressPct = nextLevelData ? Math.min(100, (completedBookings / nextLevelData.minBookings) * 100) : 100;
   const bookingsToNext = nextLevelData ? Math.max(0, nextLevelData.minBookings - completedBookings) : 0;
 
   return (
@@ -95,8 +97,6 @@ export default function Home() {
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'DM Sans', sans-serif; background: #0a0e0d; color: #f0ede8; min-height: 100vh; }
-
-        /* HERO */
         .hp-hero { position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; overflow: hidden; }
         .hp-hero-bg { position: absolute; inset: 0; background-image: linear-gradient(to bottom, rgba(10,14,13,0.35) 0%, rgba(10,14,13,0.55) 50%, rgba(10,14,13,0.95) 100%), url('https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=1800&q=80'); background-size: cover; background-position: center 30%; background-attachment: fixed; transform: scale(1.05); animation: slowZoom 20s ease-in-out infinite alternate; }
         @keyframes slowZoom { from { transform: scale(1.05); } to { transform: scale(1.12); } }
@@ -115,23 +115,17 @@ export default function Home() {
         .hp-scroll-hint { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 6px; color: rgba(255,255,255,0.4); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; animation: bounce 2s ease infinite; }
         @keyframes bounce { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(8px); } }
         .hp-scroll-hint svg { width: 18px; height: 18px; }
-
-        /* STATS */
         .hp-stats { background: #111714; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: center; }
         .hp-stat { flex: 1; max-width: 260px; padding: 28px 24px; text-align: center; border-right: 1px solid rgba(255,255,255,0.06); }
         .hp-stat:last-child { border-right: none; }
         .hp-stat-num { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; color: #a8d96b; line-height: 1; margin-bottom: 6px; }
         .hp-stat-label { font-size: 13px; color: rgba(240,237,232,0.5); }
-
-        /* SECTIONS */
         .hp-section { max-width: 1200px; margin: 0 auto; padding: 72px 24px; }
         .hp-section-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 12px; }
         .hp-section-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #a8d96b; margin-bottom: 8px; }
         .hp-section-title { font-family: 'Playfair Display', serif; font-size: clamp(26px, 4vw, 38px); font-weight: 700; color: #fff; line-height: 1.15; }
         .hp-view-all { display: inline-flex; align-items: center; gap: 6px; color: #a8d96b; font-size: 14px; font-weight: 500; text-decoration: none; border: 1px solid rgba(168,217,107,0.3); border-radius: 100px; padding: 8px 18px; transition: background 0.2s, border-color 0.2s; white-space: nowrap; }
         .hp-view-all:hover { background: rgba(168,217,107,0.1); border-color: rgba(168,217,107,0.6); }
-
-        /* CAROUSEL */
         .hp-carousel-wrap { position: relative; }
         .hp-carousel { display: flex; gap: 20px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding-bottom: 8px; scrollbar-width: none; }
         .hp-carousel::-webkit-scrollbar { display: none; }
@@ -154,8 +148,11 @@ export default function Home() {
         .hp-card-price { font-size: 15px; font-weight: 700; color: #fff; }
         .hp-card-btn { background: rgba(168,217,107,0.12); color: #a8d96b; border: 1px solid rgba(168,217,107,0.3); border-radius: 100px; padding: 7px 16px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.2s; text-decoration: none; }
         .hp-card-btn:hover { background: rgba(168,217,107,0.22); }
-
-        /* TOP DESTINATIONS */
+        .hp-card-skeleton { background: #131918; border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; overflow: hidden; flex: 0 0 280px; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .hp-skel-img { height: 190px; background: linear-gradient(90deg, #1a2118 25%, #222e20 50%, #1a2118 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+        .hp-skel-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+        .hp-skel-line { height: 10px; border-radius: 4px; background: linear-gradient(90deg, #1a2118 25%, #222e20 50%, #1a2118 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
         .hp-dest-section { background: #0c1210; border-top: 1px solid rgba(255,255,255,0.05); }
         .hp-dest-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
         .hp-dest-card { position: relative; border-radius: 18px; overflow: hidden; cursor: pointer; transition: transform 0.28s, box-shadow 0.28s; }
@@ -170,8 +167,6 @@ export default function Home() {
         .hp-dest-card:first-child .hp-dest-name { font-size: 30px; }
         .hp-dest-subtitle { font-size: 12px; color: rgba(240,237,232,0.6); margin-bottom: 8px; }
         .hp-dest-pill { display: inline-flex; align-items: center; gap: 5px; background: rgba(168,217,107,0.18); border: 1px solid rgba(168,217,107,0.35); color: #a8d96b; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 100px; }
-
-        /* LOYALTY REWARDS */
         .hp-loyalty-section { background: #0a0e0d; border-top: 1px solid rgba(255,255,255,0.06); }
         .hp-loyalty-inner { max-width: 1200px; margin: 0 auto; padding: 56px 24px 64px; }
         .hp-loyalty-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
@@ -179,8 +174,6 @@ export default function Home() {
         .hp-loyalty-title { font-family: 'Playfair Display', serif; font-size: clamp(24px, 4vw, 36px); font-weight: 700; color: #fff; line-height: 1.15; }
         .hp-loyalty-link { display: inline-flex; align-items: center; gap: 6px; color: #a8d96b; font-size: 14px; font-weight: 500; text-decoration: none; border: 1px solid rgba(168,217,107,0.3); border-radius: 100px; padding: 8px 18px; transition: background 0.2s, border-color 0.2s; white-space: nowrap; cursor: pointer; background: transparent; font-family: 'DM Sans', sans-serif; }
         .hp-loyalty-link:hover { background: rgba(168,217,107,0.1); border-color: rgba(168,217,107,0.6); }
-
-        /* Level status bar */
         .hp-loyalty-level-bar { display: flex; align-items: center; gap: 16px; background: linear-gradient(135deg, #1a3a0e 0%, #0f2209 100%); border: 1px solid rgba(168,217,107,0.3); border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; flex-wrap: wrap; }
         .hp-loyalty-level-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(168,217,107,0.2); border: 1px solid rgba(168,217,107,0.45); color: #a8d96b; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 12px; border-radius: 100px; white-space: nowrap; }
         .hp-loyalty-level-info { flex: 1; min-width: 200px; }
@@ -191,15 +184,11 @@ export default function Home() {
         .hp-loyalty-prog-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 100px; overflow: hidden; }
         .hp-loyalty-prog-fill { height: 100%; background: linear-gradient(90deg, #a8d96b, #c1e88d); border-radius: 100px; transition: width 0.6s ease; }
         .hp-loyalty-prog-hint { font-size: 12px; color: rgba(240,237,232,0.4); margin-top: 6px; }
-
-        /* Guest/logged-out banner */
         .hp-loyalty-guest-bar { background: linear-gradient(135deg, #1a3a0e 0%, #0f2209 100%); border: 1px solid rgba(168,217,107,0.3); border-radius: 16px; padding: 24px; margin-bottom: 20px; text-align: center; }
         .hp-loyalty-guest-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px; }
         .hp-loyalty-guest-desc { font-size: 13px; color: rgba(240,237,232,0.65); margin-bottom: 14px; }
         .hp-loyalty-guest-btn { display: inline-block; background: #a8d96b; color: #1a2010; border: none; border-radius: 100px; padding: 10px 22px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; transition: background 0.2s; }
         .hp-loyalty-guest-btn:hover { background: #c1e88d; }
-
-        /* Reward cards grid */
         .hp-rewards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
         .hp-rew-card { background: #131918; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px 18px; display: flex; flex-direction: column; gap: 8px; position: relative; transition: transform 0.22s, box-shadow 0.22s, border-color 0.22s; }
         .hp-rew-card.unlocked { border-color: rgba(168,217,107,0.25); }
@@ -214,26 +203,9 @@ export default function Home() {
         .hp-rew-lvl { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 9px; border-radius: 100px; margin-top: auto; width: fit-content; }
         .hp-rew-card.unlocked .hp-rew-lvl { background: rgba(168,217,107,0.14); color: #a8d96b; }
         .hp-rew-card.locked .hp-rew-lvl { background: rgba(255,255,255,0.05); color: rgba(240,237,232,0.28); border: 1px solid rgba(255,255,255,0.08); }
-
-        /* RESPONSIVE */
-        @media (max-width: 1024px) {
-          .hp-rewards-grid { grid-template-columns: repeat(3, 1fr); }
-        }
-        @media (max-width: 768px) {
-          .hp-dest-grid { grid-template-columns: repeat(2, 1fr); }
-          .hp-dest-card:first-child { grid-row: span 1; }
-          .hp-dest-card:first-child .hp-dest-img { min-height: 200px; }
-          .hp-dest-card:first-child .hp-dest-name { font-size: 22px; }
-          .hp-rewards-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-        @media (max-width: 640px) {
-          .hp-stats { flex-direction: column; }
-          .hp-stat { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); }
-          .hp-stat:last-child { border-bottom: none; }
-          .hp-carousel-btn { display: none; }
-          .hp-dest-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-          .hp-rewards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        }
+        @media (max-width: 1024px) { .hp-rewards-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 768px) { .hp-dest-grid { grid-template-columns: repeat(2, 1fr); } .hp-dest-card:first-child { grid-row: span 1; } .hp-dest-card:first-child .hp-dest-img { min-height: 200px; } .hp-dest-card:first-child .hp-dest-name { font-size: 22px; } .hp-rewards-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 640px) { .hp-stats { flex-direction: column; } .hp-stat { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); } .hp-stat:last-child { border-bottom: none; } .hp-carousel-btn { display: none; } .hp-dest-grid { grid-template-columns: 1fr 1fr; gap: 10px; } .hp-rewards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
       `}</style>
 
       {/* HERO */}
@@ -276,7 +248,60 @@ export default function Home() {
         <div className="hp-carousel-wrap">
           <button className="hp-carousel-btn prev" onClick={() => scroll(-1)}>‹</button>
           <div className="hp-carousel" ref={carouselRef}>
-            {featured.map((t) => (
+
+            {toursLoading && [1,2,3,4].map(i => (
+              <div key={i} className="hp-card-skeleton">
+                <div className="hp-skel-img" />
+                <div className="hp-skel-body">
+                  <div className="hp-skel-line" style={{width:'50%'}} />
+                  <div className="hp-skel-line" style={{width:'80%', height:'14px'}} />
+                  <div className="hp-skel-line" style={{width:'65%'}} />
+                  <div className="hp-skel-line" style={{width:'40%', marginTop:'8px'}} />
+                </div>
+              </div>
+            ))}
+
+            {!toursLoading && featuredTours.length > 0 && featuredTours.map((t) => {
+              const imgSrc = t.image_url
+                ? (t.image_url.startsWith('http') ? t.image_url : BACKEND + t.image_url)
+                : null;
+              return (
+                <div key={t.id} className="hp-card" onClick={() => nav(`/tours/${t.id}`)}>
+                  <div className="hp-card-img-wrap">
+                    {imgSrc ? (
+                      <img
+                        className="hp-card-img"
+                        src={imgSrc}
+                        alt={t.title}
+                        onError={e => { e.target.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div style={{height:'190px', background:'rgba(168,217,107,0.04)', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(168,217,107,0.2)" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                      </div>
+                    )}
+                    <span className="hp-card-badge">Trusted</span>
+                  </div>
+                  <div className="hp-card-body">
+                    <div className="hp-card-place">{t.destination}</div>
+                    <div className="hp-card-title">{t.title}</div>
+                    <div className="hp-card-tag">{t.category}</div>
+                    <div className="hp-card-footer">
+                      <div>
+                        <div className="hp-card-days">{t.duration_days} Days</div>
+                        <div className="hp-card-price">
+                          from NPR {new Intl.NumberFormat('en-NP').format(Math.round(Number(t.price_usd) * 133))}
+                        </div>
+                      </div>
+                      <span className="hp-card-btn">Explore</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+           
+            {!toursLoading && featuredTours.length === 0 && featured.map((t) => (
               <div key={t.title} className="hp-card" onClick={() => nav(`/tours?q=${encodeURIComponent(t.place)}`)}>
                 <div className="hp-card-img-wrap">
                   <img className="hp-card-img" src={`https://picsum.photos/seed/${t.seed}/900/600`} alt={t.title} />
@@ -296,6 +321,7 @@ export default function Home() {
                 </div>
               </div>
             ))}
+
           </div>
           <button className="hp-carousel-btn next" onClick={() => scroll(1)}>›</button>
         </div>
@@ -327,11 +353,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* LOYALTY REWARDS - DYNAMIC */}
+      {/* LOYALTY REWARDS */}
       <section className="hp-loyalty-section">
         <div className="hp-loyalty-inner">
-
-          {/* Header */}
           <div className="hp-loyalty-head">
             <div>
               <div className="hp-loyalty-tag">Your rewards</div>
@@ -340,7 +364,6 @@ export default function Home() {
             <Link className="hp-loyalty-link" to="/rewards">Learn more about your rewards</Link>
           </div>
 
-          {/* Level status bar — loading / logged-in / guest states */}
           {loyaltyLoading && isLoggedIn ? (
             <div className="hp-loyalty-level-bar">
               <div className="hp-loyalty-level-info">
@@ -350,17 +373,13 @@ export default function Home() {
           ) : !isLoggedIn ? (
             <div className="hp-loyalty-guest-bar">
               <div className="hp-loyalty-guest-title">Start earning rewards today</div>
-              <div className="hp-loyalty-guest-desc">
-                Sign in to track your progress and unlock discounts up to 20% off all tours
-              </div>
+              <div className="hp-loyalty-guest-desc">Sign in to track your progress and unlock discounts up to 20% off all tours</div>
               <Link to="/login" className="hp-loyalty-guest-btn">Sign in to get started</Link>
             </div>
           ) : (
             <div className="hp-loyalty-level-bar">
               <div className="hp-loyalty-level-badge">
-                <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M8 1l2 4.5 5 .5-3.5 3.5 1 5L8 12l-4.5 2.5 1-5L1 6l5-.5z"/>
-                </svg>
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l2 4.5 5 .5-3.5 3.5 1 5L8 12l-4.5 2.5 1-5L1 6l5-.5z"/></svg>
                 {currentLevelData.name}
               </div>
               <div className="hp-loyalty-level-info">
@@ -388,10 +407,8 @@ export default function Home() {
             </div>
           )}
 
-          {/* Reward cards — unlock status based on current tier */}
           <div className="hp-rewards-grid">
             {REWARD_CARDS.map((c) => {
-              // Card is unlocked if user's current level >= card's level
               const unlocked = isLoggedIn && currentLevelData.level >= c.level;
               return (
                 <div key={c.title} className={`hp-rew-card ${unlocked ? 'unlocked' : 'locked'}`}>
@@ -410,10 +427,8 @@ export default function Home() {
               );
             })}
           </div>
-
         </div>
       </section>
-
     </>
   );
 }

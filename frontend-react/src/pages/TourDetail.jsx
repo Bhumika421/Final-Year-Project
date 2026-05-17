@@ -22,8 +22,19 @@ function ImageSlider({ images, fallback }) {
   const allImages = images && images.length > 0 ? images : (fallback ? [fallback] : []);
 
   if (allImages.length === 0) return (
-    <div style={{ width: '100%', height: 420, background: '#131918', borderRadius: 24 }} />
-  );
+  <div style={{ 
+    width: '100%', height: 420, background: '#131918', 
+    borderRadius: 24, display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center',
+    border: '1px solid rgba(255,255,255,0.06)'
+  }}>
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+      <polyline points="21 15 16 10 5 21"/>
+    </svg>
+    <div style={{fontSize: 13, color: 'rgba(255,255,255,0.2)', marginTop: 12}}>No image uploaded</div>
+  </div>
+);
 
   const prev = () => setCurrent(i => (i - 1 + allImages.length) % allImages.length);
   const next = () => setCurrent(i => (i + 1) % allImages.length);
@@ -34,7 +45,10 @@ function ImageSlider({ images, fallback }) {
         className="td-slider-img"
         src={allImages[current]}
         alt={`Slide ${current + 1}`}
-        onError={e => { e.target.src = 'https://picsum.photos/seed/tour/1200/800'; }}
+        onError={e => { 
+  e.target.style.display = 'none';
+  e.target.parentElement.style.background = '#131918';
+}}
       />
       <div className="td-hero-overlay" />
       {allImages.length > 1 && (
@@ -202,7 +216,7 @@ export default function TourDetail() {
   const rawImages = tour.images && Array.isArray(tour.images) ? tour.images :
     tour.images_json ? (() => { try { return JSON.parse(tour.images_json); } catch { return []; } })() : [];
   const images = rawImages.map(img => getImageUrl(img)).filter(Boolean);
-  const fallbackImage = tour.image_url ? getImageUrl(tour.image_url) : `https://picsum.photos/seed/tour${id}/1200/800`;
+  const fallbackImage = tour.image_url ? getImageUrl(tour.image_url) : null;
 
   const priceUSD = Number(tour.price_usd);
   // Discount applies only if user is logged in AND opted in to use discount

@@ -95,7 +95,6 @@ export default function Payment() {
   const [convertTo, setConvertTo] = useState('NPR');
   const [showConverter, setShowConverter] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
-  // FIX 1: useState component BHITRA
   const [rates, setRates] = useState({ NPR: 133, USD: 1, EUR: 0.92, INR: 83.5, GBP: 0.79 });
 
   async function load() {
@@ -116,24 +115,10 @@ export default function Payment() {
       setLoading(false);
     }
   }
-
-  // FIX 2: Live rates useEffect — component level ma, sahi thau ma
-  useEffect(() => {
-    fetch('https://api.frankfurter.app/latest?from=USD&to=NPR,EUR,INR,GBP')
-      .then(r => r.json())
-      .then(data => {
-        if (data?.rates) {
-          setRates({
-            USD: 1,
-            NPR: data.rates.NPR || 133,
-            EUR: data.rates.EUR || 0.92,
-            INR: data.rates.INR || 83.5,
-            GBP: data.rates.GBP || 0.79,
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
+useEffect(() => {
+  // Use static rates for localhost — frankfurter.app CORS blocked
+  setRates({ NPR: 133, USD: 1, EUR: 0.92, INR: 83.5, GBP: 0.79 });
+}, []);
 
   useEffect(() => {
     if (paid) window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -162,15 +147,16 @@ export default function Payment() {
 
     load();
 
+    // ✅ Always reset portalLoading on any callback
+    setPortalLoading(false);
+
     if (paypalCancelled === '1') {
-      setPortalLoading(false);
       setErr('PayPal payment was cancelled. You can try again.');
       window.history.replaceState({}, '', `/payment/${bookingId}`);
       return;
     }
 
     if (paypalOrderId) {
-      setPortalLoading(false);
       (async () => {
         setPaying(true);
         try {
@@ -196,7 +182,9 @@ export default function Payment() {
 
     const isEsewaCallback = callbackMethod === 'esewa' || Boolean(esewaData) || Boolean(esewaTxn) || Boolean(esewaRefId) || Boolean(esewaOid);
     if (isEsewaCallback) {
+
       setPortalLoading(false);
+
       if (esewaStatus === 'failed') {
         setErr('eSewa payment was cancelled or failed. Please try again.');
         window.history.replaceState({}, '', `/payment/${bookingId}`);
@@ -205,12 +193,16 @@ export default function Payment() {
       (async () => {
         setPaying(true);
         try {
-          const verifyRes = await api.post('/api/payments/esewa/verify', {
-            booking_id: Number(bookingId),
-            data: esewaData || '',
-            status: esewaGatewayStatus,
-            transaction_uuid: esewaTxn,
-            total_amount: esewaAmount,
+        
+const cleanAmount = esewaAmount ? esewaAmount.split('?')[0].split('&')[0] : '';
+const cleanTxn = esewaTxn ? esewaTxn.split('?')[0].split('&')[0] : '';
+
+const verifyRes = await api.post('/api/payments/esewa/verify', {
+  booking_id: Number(bookingId),
+  data: esewaData || '',
+  status: esewaGatewayStatus,
+  transaction_uuid: cleanTxn,
+  total_amount: cleanAmount,
             esewa_txn_hint: params.get('esewa_txn_hint') || '',
             esewa_amount_hint: params.get('esewa_amount_hint') || '',
             oid: esewaOid,
@@ -237,8 +229,9 @@ export default function Payment() {
     if (!pidx) return;
 
     setPortalLoading(false);
+
     if (status === 'User canceled') {
-      setErr('Khalti payment cancel gariyो।');
+      setErr('Khalti payment cancelled. Please try again.');
       window.history.replaceState({}, '', `/payment/${bookingId}`);
       return;
     }
@@ -496,7 +489,6 @@ export default function Payment() {
                 {showConverter && (
                   <div className="p-converter">
                     <div className="p-converter-tabs">
-                      {/* FIX 3: RATES hoina, rates state use garnus */}
                       {Object.keys(rates).map(c => (
                         <button key={c} className={`p-converter-tab ${convertTo === c ? 'active' : ''}`} onClick={() => setConvertTo(c)}>{c}</button>
                       ))}
