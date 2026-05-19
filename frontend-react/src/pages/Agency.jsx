@@ -11,6 +11,7 @@ const ICONS = {
   tours: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>,
   bookings: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>,
   add: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
+  messages: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
   map: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>,
   check: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
   clock: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
@@ -24,12 +25,14 @@ const ICONS = {
   edit: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
   bell: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>,
   home: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+  send: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+  msgIcon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
 };
 
 const categories = ["Adventure", "Cultural", "Wildlife", "Trekking", "Pilgrimage", "Family", "Luxury", "General"];
 const EMPTY_FORM = { title: "", destination: "", category: "Adventure", duration_days: 3, price_usd: 199, image_url: "", description: "", latitude: "", longitude: "" };
 
-// ─── NOTIFICATION BELL ───────────────────────────────────────────────────────
+// NOTIFICATION BELL
 function NotificationBell() {
   const [notifs, setNotifs] = useState([]);
   const [open, setOpen] = useState(false);
@@ -77,10 +80,9 @@ function NotificationBell() {
           </div>
           <div className="ag-notif-list">
             {loading && notifs.length === 0 && <div className="ag-notif-empty">Loading...</div>}
-            {!loading && notifs.length === 0 && <div className="ag-notif-empty"><span style={{fontSize:28}}></span><span>No notifications yet</span></div>}
+            {!loading && notifs.length === 0 && <div className="ag-notif-empty"><span>No notifications yet</span></div>}
             {notifs.map(n => (
               <div key={n.id} className={`ag-notif-item ${!n.is_read ? 'unread' : ''}`} onClick={() => !n.is_read && markRead(n.id)}>
-                <div className="ag-notif-icon">{n.category?.includes('payment') ? '' : ''}</div>
                 <div className="ag-notif-body">
                   <div className="ag-notif-ntitle">{n.title}</div>
                   <div className="ag-notif-nbody">{n.body}</div>
@@ -96,58 +98,30 @@ function NotificationBell() {
   );
 }
 
-// ─── REJECT MODAL ─────────────────────────────────────────────────────────────
+// REJECT MODAL
 function RejectModal({ booking, onClose, onConfirm }) {
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
-
   async function submit() {
     setLoading(true);
     await onConfirm(booking.id, reason || 'Rejected by agency');
     setLoading(false);
   }
-
   return (
     <div className="ag-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{
-        background: '#0d1210', border: '1px solid rgba(248,113,113,0.2)',
-        borderRadius: 18, padding: 28, width: '100%', maxWidth: 420,
-      }}>
+      <div style={{ background: '#0d1210', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 18, padding: 28, width: '100%', maxWidth: 420 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: '#fff' }}>
-            Reject Booking?
-          </div>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: '#fff' }}>Reject Booking?</div>
           <button className="ag-close-btn" onClick={onClose}>{ICONS.close}</button>
         </div>
-
-        <div style={{ fontSize: 13, color: 'rgba(232,228,223,0.45)', marginBottom: 16, lineHeight: 1.6 }}>
-        </div>
-
         <div className="ag-field" style={{ marginBottom: 20 }}>
           <label>Reason (optional)</label>
-          <textarea
-            className="ag-input ag-textarea"
-            style={{ minHeight: 80 }}
-            placeholder="e.g. Tour full, dates unavailable, capacity reached..."
-            value={reason}
-            onChange={e => setReason(e.target.value)}
-          />
+          <textarea className="ag-input ag-textarea" style={{ minHeight: 80 }} placeholder="e.g. Tour full, dates unavailable..." value={reason} onChange={e => setReason(e.target.value)} />
         </div>
-
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="ag-cancel-btn" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
-          <button
-            onClick={submit}
-            disabled={loading}
-            style={{
-              flex: 1, background: loading ? 'rgba(248,113,113,0.4)' : '#ef4444',
-              border: 'none', borderRadius: 100, padding: '10px 22px',
-              color: '#fff', fontSize: 13, fontWeight: 700,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontFamily: "'DM Sans', sans-serif",
-            }}
-          >
-            {loading ? 'Rejecting...' : '✕ Reject Booking'}
+          <button onClick={submit} disabled={loading} style={{ flex: 1, background: loading ? 'rgba(248,113,113,0.4)' : '#ef4444', border: 'none', borderRadius: 100, padding: '10px 22px', color: '#fff', fontSize: 13, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+            {loading ? 'Rejecting...' : 'Reject Booking'}
           </button>
         </div>
       </div>
@@ -155,18 +129,13 @@ function RejectModal({ booking, onClose, onConfirm }) {
   );
 }
 
-// ─── EDIT TOUR MODAL ──────────────────────────────────────────────────────────
+// EDIT TOUR MODAL
 function EditModal({ tour, onClose, onSaved, setErr }) {
   const [form, setForm] = useState({
-    title: tour.title || '',
-    destination: tour.destination || '',
-    category: tour.category || 'Adventure',
-    duration_days: tour.duration_days || 3,
-    price_usd: tour.price_usd || 199,
-    image_url: tour.image_url || '',
-    description: tour.description || '',
-    latitude: tour.latitude || '',
-    longitude: tour.longitude || '',
+    title: tour.title || '', destination: tour.destination || '', category: tour.category || 'Adventure',
+    duration_days: tour.duration_days || 3, price_usd: tour.price_usd || 199,
+    image_url: tour.image_url || '', description: tour.description || '',
+    latitude: tour.latitude || '', longitude: tour.longitude || '',
   });
   const [itinerary, setItinerary] = useState(() => {
     if (Array.isArray(tour.itinerary) && tour.itinerary.length > 0) return tour.itinerary;
@@ -175,50 +144,31 @@ function EditModal({ tour, onClose, onSaved, setErr }) {
   });
   const [saving, setSaving] = useState(false);
 
-  function updateItin(i, k, v) {
-    setItinerary(prev => prev.map((d, idx) => idx === i ? { ...d, [k]: v } : d));
-  }
-  function addDay() {
-    setItinerary(prev => [...prev, { day: prev.length + 1, title: '', details: '' }]);
-  }
-  function removeDay(i) {
-    setItinerary(prev => prev.filter((_, idx) => idx !== i).map((d, idx) => ({ ...d, day: idx + 1 })));
-  }
+  function updateItin(i, k, v) { setItinerary(prev => prev.map((d, idx) => idx === i ? { ...d, [k]: v } : d)); }
+  function addDay() { setItinerary(prev => [...prev, { day: prev.length + 1, title: '', details: '' }]); }
+  function removeDay(i) { setItinerary(prev => prev.filter((_, idx) => idx !== i).map((d, idx) => ({ ...d, day: idx + 1 }))); }
 
   async function save() {
     setSaving(true);
     try {
-      await api.put(`/api/agency/tours/${tour.id}`, {
-        ...form,
-        duration_days: Number(form.duration_days),
-        price_usd: Number(form.price_usd),
-        latitude: form.latitude ? Number(form.latitude) : null,
-        longitude: form.longitude ? Number(form.longitude) : null,
-        itinerary,
-      });
-      onSaved();
-      onClose();
-    } catch (e) {
-      setErr(e?.response?.data?.error || 'Update failed');
-    } finally { setSaving(false); }
+      await api.put(`/api/agency/tours/${tour.id}`, { ...form, duration_days: Number(form.duration_days), price_usd: Number(form.price_usd), latitude: form.latitude ? Number(form.latitude) : null, longitude: form.longitude ? Number(form.longitude) : null, itinerary });
+      onSaved(); onClose();
+    } catch (e) { setErr(e?.response?.data?.error || 'Update failed'); }
+    finally { setSaving(false); }
   }
 
   return (
     <div className="ag-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="ag-modal">
         <div className="ag-modal-head">
-          <div>
-            <h2 className="ag-form-title">Edit Tour</h2>
-            <p className="ag-form-sub">Changes will go to admin for re-review</p>
-          </div>
+          <div><h2 className="ag-form-title">Edit Tour</h2><p className="ag-form-sub">Changes will go to admin for re-review</p></div>
           <button className="ag-close-btn" onClick={onClose}>{ICONS.close}</button>
         </div>
-
         <div className="ag-modal-body">
           <div className="ag-form-section">Basic Info</div>
           <div className="ag-form-row2">
-            <div className="ag-field"><label>Tour Title *</label><input className="ag-input" value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} /></div>
-            <div className="ag-field"><label>Destination *</label><input className="ag-input" value={form.destination} onChange={e => setForm(f => ({...f, destination: e.target.value}))} /></div>
+            <div className="ag-field"><label>Tour Title</label><input className="ag-input" value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} /></div>
+            <div className="ag-field"><label>Destination</label><input className="ag-input" value={form.destination} onChange={e => setForm(f => ({...f, destination: e.target.value}))} /></div>
           </div>
           <div className="ag-form-section">Details</div>
           <div className="ag-form-row3">
@@ -242,29 +192,234 @@ function EditModal({ tour, onClose, onSaved, setErr }) {
                 <div className="ag-itin-day-badge">Day {day.day}</div>
                 <div style={{flex:1, display:'flex', flexDirection:'column', gap:6}}>
                   <input className="ag-input" placeholder={`Day ${day.day} title`} value={day.title} onChange={e => updateItin(i, 'title', e.target.value)} />
-                  <textarea className="ag-input" style={{minHeight:60, resize:'vertical'}} placeholder="Details about this day..." value={day.details} onChange={e => updateItin(i, 'details', e.target.value)} />
+                  <textarea className="ag-input" style={{minHeight:60, resize:'vertical'}} placeholder="Details..." value={day.details} onChange={e => updateItin(i, 'details', e.target.value)} />
                 </div>
-                {itinerary.length > 1 && (
-                  <button className="ag-itin-remove" onClick={() => removeDay(i)}>{ICONS.trash}</button>
-                )}
+                {itinerary.length > 1 && <button className="ag-itin-remove" onClick={() => removeDay(i)}>{ICONS.trash}</button>}
               </div>
             ))}
             <button className="ag-itin-add" onClick={addDay}>+ Add Day</button>
           </div>
         </div>
-
         <div className="ag-modal-footer">
           <button className="ag-cancel-btn" onClick={onClose}>Cancel</button>
-          <button className="ag-submit-btn" onClick={save} disabled={saving}>
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
+          <button className="ag-submit-btn" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
+// MESSAGES TAB
+function MessagesTab() {
+  const [threads, setThreads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeThread, setActiveThread] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [msgLoading, setMsgLoading] = useState(false);
+  const bottomRef = useRef(null);
+
+  async function loadThreads() {
+    try {
+      const res = await api.get('/api/messages/threads');
+      setThreads(res.data.threads || []);
+    } catch {}
+    finally { setLoading(false); }
+  }
+
+  async function loadMessages(thread) {
+    setMsgLoading(true);
+    try {
+      const res = await api.get(`/api/messages?tour_id=${thread.tour_id}&customer_id=${thread.customer_id}`);
+      setMessages(res.data.messages || []);
+    } catch {}
+    finally { setMsgLoading(false); }
+  }
+
+  useEffect(() => {
+    loadThreads();
+    const iv = setInterval(loadThreads, 10000);
+    return () => clearInterval(iv);
+  }, []);
+
+  useEffect(() => {
+    if (activeThread) {
+      loadMessages(activeThread);
+      const iv = setInterval(() => loadMessages(activeThread), 5000);
+      return () => clearInterval(iv);
+    }
+  }, [activeThread]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  async function send() {
+    if (!input.trim() || sending || !activeThread) return;
+    setSending(true);
+    try {
+      await api.post('/api/messages', {
+        tour_id: activeThread.tour_id,
+        receiver_id: activeThread.customer_id,
+        message: input.trim()
+      });
+      setInput('');
+      await loadMessages(activeThread);
+      await loadThreads();
+    } catch {}
+    finally { setSending(false); }
+  }
+
+  function timeAgo(d) {
+    const diff = Math.floor((Date.now() - new Date(d)) / 1000);
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return new Date(d).toLocaleDateString();
+  }
+
+  return (
+    <>
+      <style>{`
+        .msg-wrap { display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 150px); border-radius: 20px; overflow: hidden; border: 1px solid rgba(168,217,107,0.1); background: #0d1210; }
+        .msg-threads { display: flex; flex-direction: column; border-right: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
+        .msg-threads-head { padding: 20px 18px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; background: linear-gradient(135deg,#111a10,#0d1210); }
+        .msg-threads-title { font-family: 'Playfair Display',serif; font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 3px; }
+        .msg-threads-sub { font-size: 11px; color: rgba(240,237,232,0.3); }
+        .msg-threads-list { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(168,217,107,0.1) transparent; }
+        .msg-threads-list::-webkit-scrollbar { width: 3px; }
+        .msg-threads-list::-webkit-scrollbar-thumb { background: rgba(168,217,107,0.1); border-radius: 10px; }
+        .msg-thread-item { display: flex; align-items: center; gap: 11px; padding: 13px 16px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; position: relative; }
+        .msg-thread-item:hover { background: rgba(255,255,255,0.03); }
+        .msg-thread-item.active { background: rgba(168,217,107,0.07); border-left: 3px solid #a8d96b; padding-left: 13px; }
+        .msg-thread-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg,#a8d96b,#5fa832); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: #0f1410; flex-shrink: 0; }
+        .msg-thread-info { flex: 1; min-width: 0; }
+        .msg-thread-name { font-size: 13px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+        .msg-thread-tour { font-size: 11px; color: rgba(240,237,232,0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+        .msg-thread-preview { font-size: 11px; color: rgba(240,237,232,0.22); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .msg-thread-badge { background: #a8d96b; color: #0f1410; font-size: 10px; font-weight: 800; min-width: 18px; height: 18px; border-radius: 100px; display: flex; align-items: center; justify-content: center; padding: 0 5px; flex-shrink: 0; }
+        .msg-threads-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 20px; color: rgba(240,237,232,0.25); font-size: 13px; text-align: center; flex: 1; }
+        .msg-chat { display: flex; flex-direction: column; overflow: hidden; background: #0a0e0d; }
+        .msg-chat-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: rgba(240,237,232,0.25); font-size: 13px; text-align: center; padding: 20px; }
+        .msg-chat-head { display: flex; align-items: center; gap: 12px; padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); background: #0d1210; flex-shrink: 0; }
+        .msg-chat-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg,#a8d96b,#5fa832); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #0f1410; flex-shrink: 0; }
+        .msg-chat-name { font-size: 14px; font-weight: 700; color: #fff; }
+        .msg-chat-tour { font-size: 11px; color: rgba(240,237,232,0.35); margin-top: 2px; }
+        .msg-messages { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.06) transparent; }
+        .msg-messages::-webkit-scrollbar { width: 3px; }
+        .msg-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 10px; }
+        .msg-bubble-wrap { display: flex; flex-direction: column; gap: 3px; }
+        .msg-bubble-wrap.me { align-items: flex-end; }
+        .msg-bubble-wrap.them { align-items: flex-start; }
+        .msg-bubble { max-width: 72%; padding: 10px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.5; color: #f0ede8; word-break: break-word; }
+        .msg-bubble.me { background: rgba(168,217,107,0.16); border: 1px solid rgba(168,217,107,0.25); border-bottom-right-radius: 4px; }
+        .msg-bubble.them { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); border-bottom-left-radius: 4px; }
+        .msg-time { font-size: 10px; color: rgba(240,237,232,0.22); padding: 0 4px; }
+        .msg-input-wrap { padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; gap: 10px; flex-shrink: 0; background: #0d1210; }
+        .msg-input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 12px; padding: 11px 15px; color: #f0ede8; font-family: 'DM Sans',sans-serif; font-size: 13.5px; outline: none; transition: border-color 0.2s; }
+        .msg-input:focus { border-color: rgba(168,217,107,0.4); }
+        .msg-input::placeholder { color: rgba(240,237,232,0.18); }
+        .msg-send-btn { width: 42px; height: 42px; border-radius: 12px; background: #a8d96b; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #0f1410; transition: all 0.2s; flex-shrink: 0; }
+        .msg-send-btn:hover:not(:disabled) { background: #c1e88d; transform: scale(1.05); }
+        .msg-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        @media(max-width:768px) { .msg-wrap { grid-template-columns: 1fr; height: auto; } }
+      `}</style>
+
+      <div className="msg-wrap">
+        {/* LEFT — Threads */}
+        <div className="msg-threads">
+          <div className="msg-threads-head">
+            <div className="msg-threads-title">Messages</div>
+            <div className="msg-threads-sub">{threads.length} conversation{threads.length !== 1 ? 's' : ''}</div>
+          </div>
+          <div className="msg-threads-list">
+            {loading && <div className="msg-threads-empty"><div>Loading...</div></div>}
+            {!loading && threads.length === 0 && (
+              <div className="msg-threads-empty">
+                <div style={{color:'rgba(168,217,107,0.3)'}}>{ICONS.msgIcon}</div>
+                <div style={{fontWeight:600, color:'rgba(240,237,232,0.4)'}}>No messages yet</div>
+                <div>Customers will message you here</div>
+              </div>
+            )}
+            {threads.map(t => (
+              <div
+                key={`${t.tour_id}-${t.customer_id}`}
+                className={`msg-thread-item ${activeThread?.tour_id === t.tour_id && activeThread?.customer_id === t.customer_id ? 'active' : ''}`}
+                onClick={() => setActiveThread(t)}
+              >
+                <div className="msg-thread-avatar">{(t.customer_name || 'C')[0].toUpperCase()}</div>
+                <div className="msg-thread-info">
+                  <div className="msg-thread-name">{t.customer_name}</div>
+                  <div className="msg-thread-tour">{t.tour_title}</div>
+                  <div className="msg-thread-preview">{t.last_message}</div>
+                </div>
+                {t.unread_count > 0 && <div className="msg-thread-badge">{t.unread_count}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* RIGHT — Chat */}
+        <div className="msg-chat">
+          {!activeThread ? (
+            <div className="msg-chat-empty">
+              <div style={{color:'rgba(168,217,107,0.2)'}}>{ICONS.msgIcon}</div>
+              <div style={{fontSize:15, fontWeight:700, color:'rgba(240,237,232,0.4)'}}>Select a conversation</div>
+              <div>Pick a customer from the left to reply</div>
+            </div>
+          ) : (
+            <>
+              <div className="msg-chat-head">
+                <div className="msg-chat-avatar">{(activeThread.customer_name || 'C')[0].toUpperCase()}</div>
+                <div>
+                  <div className="msg-chat-name">{activeThread.customer_name}</div>
+                  <div className="msg-chat-tour">{activeThread.tour_title} · {activeThread.destination}</div>
+                </div>
+              </div>
+
+              <div className="msg-messages">
+                {msgLoading && messages.length === 0 && (
+                  <div style={{textAlign:'center', color:'rgba(240,237,232,0.3)', fontSize:13, paddingTop:30}}>Loading messages...</div>
+                )}
+                {!msgLoading && messages.length === 0 && (
+                  <div style={{textAlign:'center', color:'rgba(240,237,232,0.25)', fontSize:13, paddingTop:40}}>
+                    No messages yet. Say hello!
+                  </div>
+                )}
+                {messages.map(m => {
+                  const isMe = m.sender_role === 'agency';
+                  return (
+                    <div key={m.id} className={`msg-bubble-wrap ${isMe ? 'me' : 'them'}`}>
+                      <div className={`msg-bubble ${isMe ? 'me' : 'them'}`}>{m.message}</div>
+                      <div className="msg-time">{isMe ? 'You' : m.sender_name} · {timeAgo(m.created_at)}</div>
+                    </div>
+                  );
+                })}
+                <div ref={bottomRef} />
+              </div>
+
+              <div className="msg-input-wrap">
+                <input
+                  className="msg-input"
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
+                  placeholder={`Reply to ${activeThread.customer_name}...`}
+                />
+                <button className="msg-send-btn" onClick={send} disabled={sending || !input.trim()}>
+                  {ICONS.send}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// MAIN COMPONENT
 export default function Agency() {
   const nav = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -278,9 +433,8 @@ export default function Agency() {
   const [actionLoading, setActionLoading] = useState(null);
   const [editingTour, setEditingTour] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
-
-  // Reject modal state
   const [rejectModal, setRejectModal] = useState({ open: false, booking: null });
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   const user = getUser();
   const [form, setForm] = useState(EMPTY_FORM);
@@ -301,31 +455,22 @@ export default function Agency() {
         api.get("/api/agency/tours"),
         api.get("/api/agency/bookings"),
       ]);
-
       if (mine.status === 'rejected' || b.status === 'rejected') {
-        const tourErr = mine.status === 'rejected' ? mine.reason : null;
-        const bookingErr = b.status === 'rejected' ? b.reason : null;
-        const status = tourErr?.response?.status || bookingErr?.response?.status || 0;
-
-        if (status === 401 || status === 403) {
-          localStorage.removeItem('sjp_token');
-          localStorage.removeItem('user');
-          nav('/agency-login');
-          return;
-        }
-
-        const msg =
-          tourErr?.response?.data?.error ||
-          bookingErr?.response?.data?.error ||
-          'Failed to load agency data';
-        setErr(msg);
+        const status = mine.reason?.response?.status || b.reason?.response?.status || 0;
+        if (status === 401 || status === 403) { localStorage.removeItem('sjp_token'); localStorage.removeItem('user'); nav('/agency-login'); return; }
+        setErr(mine.reason?.response?.data?.error || b.reason?.response?.data?.error || 'Failed to load');
       }
-
       setMyTours(mine.status === 'fulfilled' ? (mine.value.data.items || []) : []);
       setBookings(b.status === 'fulfilled' ? (b.value.data.items || []) : []);
-    } catch (ex) {
-      setErr(ex?.response?.data?.error || "Failed to load data");
-    } finally { setLoading(false); }
+    } catch (ex) { setErr(ex?.response?.data?.error || "Failed to load data"); }
+    finally { setLoading(false); }
+  }
+
+  async function loadUnread() {
+    try {
+      const res = await api.get('/api/messages/unread');
+      setUnreadMessages(res.data.count || 0);
+    } catch {}
   }
 
   useEffect(() => {
@@ -334,6 +479,9 @@ export default function Agency() {
     if (!token || !u) { nav('/agency-login'); return; }
     if (u.role !== 'agency') { nav('/dashboard'); return; }
     load();
+    loadUnread();
+    const iv = setInterval(loadUnread, 15000);
+    return () => clearInterval(iv);
   }, []);
 
   async function deleteTour(id) {
@@ -352,25 +500,21 @@ export default function Agency() {
     setActionLoading(id + '-confirm');
     try {
       await api.post(`/api/agency/bookings/${id}/confirm`);
-      setSuccessMsg("Booking confirmed! Customer notified.");
+      setSuccessMsg("Booking confirmed!");
       setTimeout(() => setSuccessMsg(""), 4000);
       await load();
     } catch (e) { setErr(e?.response?.data?.error || "Failed to confirm"); }
     finally { setActionLoading(null); }
   }
 
-  //  Reject — modal open garne (prompt() 
-  function rejectBooking(booking) {
-    setRejectModal({ open: true, booking });
-  }
+  function rejectBooking(booking) { setRejectModal({ open: true, booking }); }
 
-  //  Actual reject API call
   async function confirmReject(id, reason) {
     setRejectModal({ open: false, booking: null });
     setActionLoading(id + '-reject');
     try {
       await api.post(`/api/agency/bookings/${id}/reject`, { reason });
-      setSuccessMsg("Booking rejected. Customer notified.");
+      setSuccessMsg("Booking rejected.");
       setTimeout(() => setSuccessMsg(""), 4000);
       await load();
     } catch (e) { setErr(e?.response?.data?.error || "Failed to reject"); }
@@ -388,62 +532,42 @@ export default function Agency() {
       reader.readAsDataURL(file);
     });
   }
+
   function removeImage(index) {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
     setPreviews(prev => prev.filter((_, i) => i !== index));
   }
-async function uploadImages() {
-  if (!selectedFiles.length) return [];
-  setUploading(true);
-  setErr('');
-  try {
-    const formData = new FormData();
-    selectedFiles.forEach(file => formData.append('images[]', file));
-    const res = await api.post('/api/upload/images', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    if (!res.data.urls || res.data.urls.length === 0) {
-      setErr('Upload failed — no URLs returned.');
+
+  async function uploadImages() {
+    if (!selectedFiles.length) return [];
+    setUploading(true);
+    setErr('');
+    try {
+      const formData = new FormData();
+      selectedFiles.forEach(file => formData.append('images[]', file));
+      const res = await api.post('/api/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      if (!res.data.urls || res.data.urls.length === 0) { setErr('Upload failed.'); return []; }
+      return res.data.urls;
+    } catch (ex) {
+      setErr(ex?.response?.data?.error || 'Image upload failed.');
       return [];
-    }
-    return res.data.urls;
-  } catch (ex) {
-    const errMsg = ex?.response?.data?.error || 'Image upload failed. Check file size and format.';
-    setErr(errMsg);
-    return [];
-  } finally {
-    setUploading(false);
+    } finally { setUploading(false); }
   }
-}
 
   async function createTour(e) {
-  e.preventDefault();
-  setErr(""); setSubmitting(true);
-  try {
-    let imageUrl = form.image_url;
-    let imagesJson = null;
-    if (selectedFiles.length > 0) {
-      const urls = await uploadImages();
-      if (!urls || urls.length === 0) {
-        setSubmitting(false);
-        return;
+    e.preventDefault();
+    setErr(""); setSubmitting(true);
+    try {
+      let imageUrl = form.image_url;
+      let imagesJson = null;
+      if (selectedFiles.length > 0) {
+        const urls = await uploadImages();
+        if (!urls || urls.length === 0) { setSubmitting(false); return; }
+        imageUrl = urls[0];
+        imagesJson = JSON.stringify(urls);
       }
-      imageUrl = urls[0];
-      imagesJson = JSON.stringify(urls);
-    }
-    if (!imageUrl) {
-      setErr("Please upload an image or provide an image URL.");
-      setSubmitting(false);
-      return;
-    }
-      await api.post("/api/agency/tours", {
-        ...form,
-        image_url: imageUrl,
-        images_json: imagesJson,
-        itinerary: itinerary,
-        latitude: form.latitude ? Number(form.latitude) : null,
-        longitude: form.longitude ? Number(form.longitude) : null,
-      });
+      if (!imageUrl) { setErr("Please upload an image or provide an image URL."); setSubmitting(false); return; }
+      await api.post("/api/agency/tours", { ...form, image_url: imageUrl, images_json: imagesJson, itinerary, latitude: form.latitude ? Number(form.latitude) : null, longitude: form.longitude ? Number(form.longitude) : null });
       setForm(EMPTY_FORM); setSelectedFiles([]); setPreviews([]);
       setItinerary([{ day: 1, title: '', details: '' }]);
       setSuccessMsg("Tour submitted for admin review!");
@@ -491,11 +615,13 @@ async function uploadImages() {
 
   const agencyName = user?.full_name || user?.name || 'Agency';
   const initials = agencyName.slice(0, 2).toUpperCase();
+
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: ICONS.dashboard },
-    { id: 'tours',     label: 'My Tours',  icon: ICONS.tours },
-    { id: 'bookings',  label: 'Bookings',  icon: ICONS.bookings },
-    { id: 'add',       label: 'Add Tour',  icon: ICONS.add },
+    { id: 'dashboard', label: 'Dashboard',  icon: ICONS.dashboard },
+    { id: 'tours',     label: 'My Tours',   icon: ICONS.tours },
+    { id: 'bookings',  label: 'Bookings',   icon: ICONS.bookings },
+    { id: 'messages',  label: 'Messages',   icon: ICONS.messages },
+    { id: 'add',       label: 'Add Tour',   icon: ICONS.add },
   ];
 
   function logout() {
@@ -508,23 +634,13 @@ async function uploadImages() {
     <>
       <style>{styles}</style>
 
-      {/*  Reject Modal */}
       {rejectModal.open && (
-        <RejectModal
-          booking={rejectModal.booking}
-          onClose={() => setRejectModal({ open: false, booking: null })}
-          onConfirm={confirmReject}
-        />
+        <RejectModal booking={rejectModal.booking} onClose={() => setRejectModal({ open: false, booking: null })} onConfirm={confirmReject} />
       )}
-
-      {/* Edit Tour Modal */}
       {editingTour && (
-        <EditModal
-          tour={editingTour}
-          onClose={() => setEditingTour(null)}
-          onSaved={() => { setSuccessMsg("Tour updated successfully!"); setTimeout(() => setSuccessMsg(""), 4000); load(); }}
-          setErr={setErr}
-        />
+        <EditModal tour={editingTour} onClose={() => setEditingTour(null)}
+          onSaved={() => { setSuccessMsg("Tour updated!"); setTimeout(() => setSuccessMsg(""), 4000); load(); }}
+          setErr={setErr} />
       )}
 
       <div className="ag-root">
@@ -540,11 +656,11 @@ async function uploadImages() {
             <div className="ag-nav-label">MENU</div>
             {navItems.map(item => (
               <button key={item.id} className={`ag-nav-item ${activeTab === item.id ? 'active' : ''}`}
-                onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}>
+                onClick={() => { setActiveTab(item.id); setSidebarOpen(false); if (item.id === 'messages') setUnreadMessages(0); }}>
                 <span className="ag-nav-icon">{item.icon}</span>
                 <span>{item.label}</span>
-                {item.id === 'bookings' && pendingBookings > 0 &&
-                  <span className="ag-nav-badge">{pendingBookings}</span>}
+                {item.id === 'bookings' && pendingBookings > 0 && <span className="ag-nav-badge">{pendingBookings}</span>}
+                {item.id === 'messages' && unreadMessages > 0 && <span className="ag-nav-badge" style={{background:'#60a5fa'}}>{unreadMessages}</span>}
               </button>
             ))}
           </nav>
@@ -569,7 +685,7 @@ async function uploadImages() {
               <button className="ag-hamburger" onClick={() => setSidebarOpen(v => !v)}>{ICONS.menu}</button>
               <div>
                 <h1 className="ag-page-title">
-                  {activeTab === 'dashboard' ? 'Dashboard' : activeTab === 'tours' ? 'My Tours' : activeTab === 'bookings' ? 'Bookings' : 'Add Tour'}
+                  {activeTab === 'dashboard' ? 'Dashboard' : activeTab === 'tours' ? 'My Tours' : activeTab === 'bookings' ? 'Bookings' : activeTab === 'messages' ? 'Messages' : 'Add Tour'}
                 </h1>
                 <p className="ag-page-sub">Welcome back, <b style={{color:'#a8d96b'}}>{agencyName}</b></p>
               </div>
@@ -586,15 +702,15 @@ async function uploadImages() {
           {err && <div className="ag-alert ag-alert-err">{err}</div>}
           {successMsg && <div className="ag-alert ag-alert-ok">&#10003; {successMsg}</div>}
 
-          {/* DASHBOARD TAB */}
+          {/* DASHBOARD */}
           {activeTab === 'dashboard' && (
             <div className="ag-content">
               <div className="ag-stats">
                 {[
                   { num: myTours.length,  label: 'Total Tours',    icon: ICONS.map,   color: '#a8d96b' },
-                  { num: approvedCount,   label: 'Approved',       icon: ICONS.check, color: '#a8d96b' },
-                  { num: pendingCount,    label: 'Pending Review', icon: ICONS.clock, color: '#f59e0b' },
-                  { num: bookings.length, label: 'Bookings',       icon: ICONS.bag,   color: '#60a5fa' },
+                  { num: approvedCount,   label: 'Approved',        icon: ICONS.check, color: '#a8d96b' },
+                  { num: pendingCount,    label: 'Pending Review',  icon: ICONS.clock, color: '#f59e0b' },
+                  { num: bookings.length, label: 'Bookings',        icon: ICONS.bag,   color: '#60a5fa' },
                 ].map((s, i) => (
                   <div className="ag-stat-card" key={i} style={{'--accent': s.color}}>
                     <div className="ag-stat-icon-wrap">{s.icon}</div>
@@ -645,7 +761,7 @@ async function uploadImages() {
             </div>
           )}
 
-          {/* TOURS TAB */}
+          {/* TOURS */}
           {activeTab === 'tours' && (
             <div className="ag-content">
               <div className="ag-filter-row">
@@ -672,7 +788,7 @@ async function uploadImages() {
                   {filteredTours.map(t => (
                     <div key={t.id} className="ag-tour-card">
                       <div className="ag-tour-img-wrap">
-                      {t.image_url ? <img className="ag-tour-img" src={t.image_url?.startsWith('http') ? t.image_url  : `http://localhost/safe-journey-planner/backend-php/public${t.image_url}`} alt={t.title} /> : <div className="ag-tour-img-ph">{ICONS.img}</div>}
+                        {t.image_url ? <img className="ag-tour-img" src={t.image_url?.startsWith('http') ? t.image_url : `${BACKEND}${t.image_url}`} alt={t.title} /> : <div className="ag-tour-img-ph">{ICONS.img}</div>}
                         <span className="ag-tour-badge" style={{ background: statusColor(t.approval_status), color: '#0a0e0d' }}>{t.approval_status}</span>
                       </div>
                       <div className="ag-tour-body">
@@ -686,9 +802,7 @@ async function uploadImages() {
                           <div className="ag-rejection">{t.rejection_reason}</div>
                         )}
                         <div className="ag-tour-actions">
-                          <button className="ag-edit-btn" onClick={() => setEditingTour(t)} disabled={actionLoading === t.id + '-delete'}>
-                            {ICONS.edit} Edit
-                          </button>
+                          <button className="ag-edit-btn" onClick={() => setEditingTour(t)} disabled={actionLoading === t.id + '-delete'}>{ICONS.edit} Edit</button>
                           <button className="ag-delete-btn" onClick={() => deleteTour(t.id)} disabled={actionLoading === t.id + '-delete'}>
                             {actionLoading === t.id + '-delete' ? '...' : <>{ICONS.trash} Delete</>}
                           </button>
@@ -701,7 +815,7 @@ async function uploadImages() {
             </div>
           )}
 
-          {/* BOOKINGS TAB */}
+          {/* BOOKINGS */}
           {activeTab === 'bookings' && (
             <div className="ag-content">
               {loading ? [1,2,3].map(i => <div key={i} className="ag-skeleton" style={{marginBottom:10}} />) :
@@ -733,23 +847,29 @@ async function uploadImages() {
                   {b.status === 'pending' && (
                     <div className="ag-booking-actions">
                       <button className="ag-confirm-btn" onClick={() => confirmBooking(b.id)} disabled={actionLoading === b.id+'-confirm'}>
-                        {actionLoading === b.id+'-confirm' ? 'Confirming...' : '✓ Confirm'}
+                        {actionLoading === b.id+'-confirm' ? 'Confirming...' : 'Confirm'}
                       </button>
-                      {/* Custom reject modal — prompt() */}
                       <button className="ag-reject-btn" onClick={() => rejectBooking(b)} disabled={actionLoading === b.id+'-reject'}>
-                        {actionLoading === b.id+'-reject' ? 'Rejecting...' : '✕ Reject'}
+                        {actionLoading === b.id+'-reject' ? 'Rejecting...' : 'Reject'}
                       </button>
                     </div>
                   )}
-                  {b.status === 'confirmed' && <div className="ag-booking-note">✓ Confirmed — Waiting for customer payment</div>}
-                  {b.status === 'paid' && <div className="ag-booking-note" style={{color:'#60a5fa',borderColor:'rgba(96,165,250,0.2)',background:'rgba(96,165,250,0.05)'}}> Payment received!</div>}
-                  {b.status === 'cancelled' && <div className="ag-booking-note" style={{color:'#f87171',borderColor:'rgba(248,113,113,0.2)',background:'rgba(248,113,113,0.05)'}}>✕ Rejected</div>}
+                  {b.status === 'confirmed' && <div className="ag-booking-note">Confirmed — Waiting for customer payment</div>}
+                  {b.status === 'paid' && <div className="ag-booking-note" style={{color:'#60a5fa',borderColor:'rgba(96,165,250,0.2)',background:'rgba(96,165,250,0.05)'}}>Payment received</div>}
+                  {b.status === 'cancelled' && <div className="ag-booking-note" style={{color:'#f87171',borderColor:'rgba(248,113,113,0.2)',background:'rgba(248,113,113,0.05)'}}>Rejected</div>}
                 </div>
               ))}
             </div>
           )}
 
-          {/* ADD TOUR TAB */}
+          {/* MESSAGES */}
+          {activeTab === 'messages' && (
+            <div className="ag-content">
+              <MessagesTab />
+            </div>
+          )}
+
+          {/* ADD TOUR */}
           {activeTab === 'add' && (
             <div className="ag-content">
               <div className="ag-form-card">
@@ -763,46 +883,46 @@ async function uploadImages() {
                 <form onSubmit={createTour} className="ag-form">
                   <div className="ag-form-section">Basic Info</div>
                   <div className="ag-form-row2">
-                    <div className="ag-field"><label>Tour Title *</label><input className="ag-input" value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} placeholder="e.g. Everest Base Camp Trek" required /></div>
+                    <div className="ag-field"><label>Tour Title</label><input className="ag-input" value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} placeholder="e.g. Everest Base Camp Trek" required /></div>
                     <div className="ag-field">
-                        <label>Destination *</label>
-                        <select className="ag-input" value={form.destination} onChange={e => setForm(f => ({...f, destination: e.target.value}))} required>
-                          <option value="">Select destination</option>
-                          <option value="Kathmandu">Kathmandu</option>
-                          <option value="Pokhara">Pokhara</option>
-                          <option value="Chitwan">Chitwan</option>
-                          <option value="Lumbini">Lumbini</option>
-                          <option value="Bhaktapur">Bhaktapur</option>
-                          <option value="Nagarkot">Nagarkot</option>
-                          <option value="Bandipur">Bandipur</option>
-                          <option value="Everest Region">Everest Region</option>
-                          <option value="Annapurna Region">Annapurna Region</option>
-                          <option value="Mustang">Mustang</option>
-                          <option value="Ilam">Ilam</option>
-                          <option value="Rara">Rara</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
+                      <label>Destination</label>
+                      <select className="ag-input" value={form.destination} onChange={e => setForm(f => ({...f, destination: e.target.value}))} required>
+                        <option value="">Select destination</option>
+                        <option value="Kathmandu">Kathmandu</option>
+                        <option value="Pokhara">Pokhara</option>
+                        <option value="Chitwan">Chitwan</option>
+                        <option value="Lumbini">Lumbini</option>
+                        <option value="Bhaktapur">Bhaktapur</option>
+                        <option value="Nagarkot">Nagarkot</option>
+                        <option value="Bandipur">Bandipur</option>
+                        <option value="Everest Region">Everest Region</option>
+                        <option value="Annapurna Region">Annapurna Region</option>
+                        <option value="Mustang">Mustang</option>
+                        <option value="Ilam">Ilam</option>
+                        <option value="Rara">Rara</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="ag-form-section">Details</div>
                   <div className="ag-form-row3">
-                    <div className="ag-field"><label>Category *</label><select className="ag-input" value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))}>{categories.map(c => <option key={c}>{c}</option>)}</select></div>
-                    <div className="ag-field"><label>Duration (days) *</label><input className="ag-input" type="number" min="1" value={form.duration_days} onChange={e => setForm(f => ({...f, duration_days: +e.target.value}))} required /></div>
-                    <div className="ag-field"><label>Price (USD) *</label><input className="ag-input" type="number" min="0" step="0.01" value={form.price_usd} onChange={e => setForm(f => ({...f, price_usd: +e.target.value}))} required /></div>
+                    <div className="ag-field"><label>Category</label><select className="ag-input" value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))}>{categories.map(c => <option key={c}>{c}</option>)}</select></div>
+                    <div className="ag-field"><label>Duration (days)</label><input className="ag-input" type="number" min="1" value={form.duration_days} onChange={e => setForm(f => ({...f, duration_days: +e.target.value}))} required /></div>
+                    <div className="ag-field"><label>Price (USD)</label><input className="ag-input" type="number" min="0" step="0.01" value={form.price_usd} onChange={e => setForm(f => ({...f, price_usd: +e.target.value}))} required /></div>
                   </div>
                   <div className="ag-form-section">Location</div>
                   <div className="ag-form-row2">
                     <div className="ag-field"><label>Latitude</label><input className="ag-input" type="number" step="any" value={form.latitude} onChange={e => setForm(f => ({...f, latitude: e.target.value}))} placeholder="e.g. 27.9881" /></div>
                     <div className="ag-field"><label>Longitude</label><input className="ag-input" type="number" step="any" value={form.longitude} onChange={e => setForm(f => ({...f, longitude: e.target.value}))} placeholder="e.g. 86.9250" /></div>
                   </div>
-                  <div className="ag-lat-hint">Tip: Google Maps → right click → coordinates copy gara</div>
+                  <div className="ag-lat-hint">Tip: Google Maps ma right click garnus — coordinates copy garnus</div>
                   <div className="ag-form-section">Photos</div>
                   <div className="ag-upload-area" onClick={() => fileInputRef.current?.click()}
                     onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('drag'); }}
                     onDragLeave={e => e.currentTarget.classList.remove('drag')}
                     onDrop={e => { e.preventDefault(); e.currentTarget.classList.remove('drag'); const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')); if (files.length) handleFileSelect({ target: { files } }); }}>
                     <div className="ag-upload-icon">{ICONS.upload}</div>
-                    <div className="ag-upload-text">Click to select or drag & drop photos</div>
+                    <div className="ag-upload-text">Click to select or drag and drop photos</div>
                     <div className="ag-upload-sub">JPG, PNG, WEBP · Max 5MB · Up to 5 photos</div>
                     <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleFileSelect} />
                   </div>
@@ -827,12 +947,10 @@ async function uploadImages() {
                       <div key={i} className="ag-itin-row">
                         <div className="ag-itin-day-badge">Day {day.day}</div>
                         <div style={{flex:1, display:'flex', flexDirection:'column', gap:6}}>
-                          <input className="ag-input" placeholder={`Day ${day.day} title (e.g. Arrival & City Tour)`} value={day.title} onChange={e => updateItin(i, 'title', e.target.value)} />
+                          <input className="ag-input" placeholder={`Day ${day.day} title`} value={day.title} onChange={e => updateItin(i, 'title', e.target.value)} />
                           <textarea className="ag-input" style={{minHeight:60, resize:'vertical'}} placeholder="Details about this day..." value={day.details} onChange={e => updateItin(i, 'details', e.target.value)} />
                         </div>
-                        {itinerary.length > 1 && (
-                          <button type="button" className="ag-itin-remove" onClick={() => removeItinDay(i)}>{ICONS.trash}</button>
-                        )}
+                        {itinerary.length > 1 && <button type="button" className="ag-itin-remove" onClick={() => removeItinDay(i)}>{ICONS.trash}</button>}
                       </div>
                     ))}
                     <button type="button" className="ag-itin-add" onClick={addItinDay}>+ Add Day</button>
@@ -903,7 +1021,6 @@ const styles = `
   .ag-notif-item:last-child{border-bottom:none;}
   .ag-notif-item:hover{background:rgba(255,255,255,0.03);}
   .ag-notif-item.unread{background:rgba(168,217,107,0.04);}
-  .ag-notif-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
   .ag-notif-body{flex:1;min-width:0;}
   .ag-notif-ntitle{font-size:13px;font-weight:600;color:#e8e4df;margin-bottom:3px;}
   .ag-notif-nbody{font-size:12px;color:rgba(232,228,223,0.45);line-height:1.4;margin-bottom:4px;}
