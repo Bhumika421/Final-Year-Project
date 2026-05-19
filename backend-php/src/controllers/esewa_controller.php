@@ -75,7 +75,10 @@ function esewa_create_order(array $user): void {
       'error' => $e->getMessage(),
       'booking_id' => $bookingId,
     ]);
-    json_response(['error' => 'eSewa order could not be created'], 500);
+    json_response([
+      'error' => 'eSewa order could not be created',
+      'debug' => $e->getMessage(),
+    ], 500);
   }
 }
 
@@ -95,16 +98,23 @@ function esewa_verify_order(array $user): void {
 
   try {
     $provider = PaymentProviderFactory::make('esewa');
-    $capture = $provider->capture([
-      'data' => (string)($data['data'] ?? ''),
-      'status' => (string)($data['status'] ?? ''),
-      'transaction_uuid' => (string)($data['transaction_uuid'] ?? ($data['esewa_txn_hint'] ?? ($data['oid'] ?? ''))),
-      'total_amount' => (string)($data['total_amount'] ?? ($data['esewa_amount_hint'] ?? ($data['amt'] ?? ''))),
-      'oid' => (string)($data['oid'] ?? ''),
-      'amt' => (string)($data['amt'] ?? ''),
-      'ref_id' => (string)($data['ref_id'] ?? ($data['refId'] ?? '')),
-      'refId' => (string)($data['refId'] ?? ''),
-    ]);
+  
+$rawTotalAmount = (string)($data['total_amount'] ?? ($data['esewa_amount_hint'] ?? ($data['amt'] ?? '')));
+$cleanTotalAmount = strtok($rawTotalAmount, '?&') ?: $rawTotalAmount;
+
+$rawTxnUuid = (string)($data['transaction_uuid'] ?? ($data['esewa_txn_hint'] ?? ($data['oid'] ?? '')));
+$cleanTxnUuid = strtok($rawTxnUuid, '?&') ?: $rawTxnUuid;
+
+$capture = $provider->capture([
+  'data' => (string)($data['data'] ?? ''),
+  'status' => (string)($data['status'] ?? ''),
+  'transaction_uuid' => $cleanTxnUuid,
+  'total_amount' => $cleanTotalAmount,
+  'oid' => (string)($data['oid'] ?? ''),
+  'amt' => (string)($data['amt'] ?? ''),
+  'ref_id' => (string)($data['ref_id'] ?? ($data['refId'] ?? '')),
+  'refId' => (string)($data['refId'] ?? ''),
+]);
 
     if (!($capture['ok'] ?? false)) {
       app_log('esewa_verify_order rejected', [
@@ -159,25 +169,27 @@ function esewa_verify_order(array $user): void {
       'earned_points' => $finalize['earned_points'],
       'already_paid' => (bool)($finalize['already_paid'] ?? false),
     ]);
+
   } catch (Throwable $e) {
     app_log('esewa_verify_order failed', [
       'error' => $e->getMessage(),
       'booking_id' => $bookingId,
     ]);
-    json_response(['error' => 'eSewa verification could not be completed'], 500);
+    json_response([
+      'error' => 'eSewa verification could not be completed',
+      'debug' => $e->getMessage(),
+    ], 500);
   }
 }
 
 function esewa_append_query(string $url, array $query): string {
   $parts = parse_url($url);
-
   $base = ($parts['scheme'] ?? '') !== '' ? ($parts['scheme'] . '://') : '';
   $base .= $parts['host'] ?? '';
   if (isset($parts['port'])) {
     $base .= ':' . $parts['port'];
   }
   $base .= $parts['path'] ?? '';
-
   $existing = [];
   if (!empty($parts['query'])) {
     parse_str($parts['query'], $existing);
@@ -185,7 +197,6 @@ function esewa_append_query(string $url, array $query): string {
   $merged = array_merge($existing, $query);
   $queryString = http_build_query($merged);
   $fragment = isset($parts['fragment']) ? ('#' . $parts['fragment']) : '';
-
   return $base . ($queryString !== '' ? ('?' . $queryString) : '') . $fragment;
 }
 
@@ -195,7 +206,5 @@ function esewa_build_txn_uuid(string $bookingCode): string {
   if ($normalized === '') {
     $normalized = 'BOOKING';
   }
-
-  // Keep a short, predictable format accepted by eSewa (alphanumeric + hyphen only).
   return date('ymd-His') . '-' . substr($normalized, 0, 12) . '-' . bin2hex(random_bytes(3));
 }

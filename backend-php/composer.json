@@ -1,6 +1,7 @@
 {
   "require": {
-    "google/apiclient": "^2.15"
+    "google/apiclient": "^2.15",
+    "phpmailer/phpmailer": "^7.0"
   },
   "config": {
     "audit": {

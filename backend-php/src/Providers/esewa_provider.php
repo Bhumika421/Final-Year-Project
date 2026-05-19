@@ -119,9 +119,9 @@ class ESewaProvider implements PaymentProviderInterface {
     }
 
     $verifyUrl = $this->verifyUrl
-      . '?product_code=' . rawurlencode($this->merchantCode)
-      . '&total_amount=' . rawurlencode($totalAmount)
-      . '&transaction_uuid=' . rawurlencode($transactionUuid);
+  . '?product_code=' . rawurlencode($this->merchantCode)
+  . '&total_amount=' . rawurlencode($totalAmount)
+  . '&transaction_uuid=' . rawurlencode($transactionUuid);
 
     $verifyRes = $this->request($verifyUrl);
     if (!($verifyRes['ok'] ?? false)) {

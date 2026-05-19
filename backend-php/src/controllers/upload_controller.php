@@ -17,8 +17,6 @@ function upload_images(): void {
     $urls    = [];
     $allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/jfif'];
     $maxSize = 5 * 1024 * 1024; // 5MB
-    $minWidth  = 800;  
-    $minHeight = 500;  
 
     // Build base URL from current request
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -51,21 +49,6 @@ function upload_images(): void {
             json_response(['error' => 'Each image must be under 5MB'], 422);
             return;
         }
-
-        // ── NEW: Minimum dimension check ──
-        $imageInfo = getimagesize($tmp);
-        if (!$imageInfo) {
-            json_response(['error' => "Invalid image file: $name"], 422);
-            return;
-        }
-        [$width, $height] = $imageInfo;
-        if ($width < $minWidth || $height < $minHeight) {
-            json_response([
-                'error' => "\"$name\" is too small ({$width}x{$height}px). Minimum size is {$minWidth}x{$minHeight}px. Please upload a higher quality image."
-            ], 422);
-            return;
-        }
-        // ── END dimension check ──
 
         $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
         if ($ext === 'jfif') $ext = 'jpg';
