@@ -5,10 +5,6 @@ require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/../utils.php';
 require_once __DIR__ . '/../services/payment_service.php';
 
-/**
- * Helper: Calculate user's current loyalty tier based on paid bookings count.
- * Matches frontend LOYALTY_LEVELS in loyalty.js
- */
 function get_user_loyalty_tier(int $userId): array {
   $stmt = db()->prepare("SELECT COUNT(*) FROM bookings WHERE user_id=? AND status='paid'");
   $stmt->execute([$userId]);
@@ -48,7 +44,6 @@ function bookings_create(array $user): void {
   $tour = $stmt->fetch();
   if (!$tour) json_response(['error'=>'Tour not found'], 404);
 
-  // FIX #5: Prevent duplicate pending bookings for the same tour by the same user
   $stmt = db()->prepare("SELECT id FROM bookings WHERE user_id=? AND tour_id=? AND status='pending' LIMIT 1");
   $stmt->execute([(int)$user['id'], $tourId]);
   if ($stmt->fetch()) {
@@ -60,7 +55,6 @@ function bookings_create(array $user): void {
   $taxRate = (float)$config['app']['tax_rate'];
   $tax = round($subtotal * $taxRate, 2);
 
-  // Tier-based loyalty discount
   $discount = 0.0;
   $discountPct = 0.0;
   $loyaltyTier = 1;
@@ -136,32 +130,122 @@ function bookings_get(array $params, array $user): void {
   json_response(['ok'=>true,'booking'=>$b]);
 }
 
+
 function booking_confirm(array $params, array $agency): void {
-  $id = (int)$params['id'];
+  $id = (int)($params['id'] ?? 0);
+  if (!$id) json_response(['error' => 'Booking ID required'], 422);
 
-  // Check booking belongs to agency's tour
-  $stmt = db()->prepare("SELECT b.*, t.title, t.agency_id FROM bookings b
-                         JOIN tours t ON t.id=b.tour_id
-                         WHERE b.id=? LIMIT 1");
+  $db = db();
+
+  $stmt = $db->prepare("
+    SELECT b.*, u.full_name as customer_name, u.email as customer_email,
+           t.title as tour_title, t.destination, t.duration_days, t.agency_id
+    FROM bookings b
+    JOIN users u ON u.id = b.user_id
+    JOIN tours t ON t.id = b.tour_id
+    WHERE b.id = ? LIMIT 1
+  ");
   $stmt->execute([$id]);
-  $b = $stmt->fetch();
-  if (!$b) json_response(['error'=>'Booking not found'], 404);
-  if ((int)$b['agency_id'] !== (int)$agency['id']) json_response(['error'=>'Forbidden'], 403);
+  $booking = $stmt->fetch();
 
-  // FIX #7: Guard against both 'paid' AND 'cancelled' statuses
-  if ($b['status'] === 'paid') json_response(['error'=>'Already paid — cannot change status'], 409);
-  if ($b['status'] === 'cancelled') json_response(['error'=>'Booking is already cancelled — cannot confirm'], 409);
-  if ($b['status'] === 'confirmed') json_response(['error'=>'Booking is already confirmed'], 409);
+  if (!$booking) json_response(['error' => 'Booking not found'], 404);
+  if ((int)$booking['agency_id'] !== (int)$agency['id']) json_response(['error' => 'Forbidden'], 403);
+  if ($booking['status'] === 'paid') json_response(['error' => 'Already paid'], 409);
+  if ($booking['status'] === 'cancelled') json_response(['error' => 'Booking is already cancelled'], 409);
+  if ($booking['status'] === 'confirmed') json_response(['error' => 'Already confirmed'], 409);
 
-  db()->prepare("UPDATE bookings SET status='confirmed' WHERE id=?")->execute([$id]);
+  // Update status
+  $db->prepare("UPDATE bookings SET status = 'confirmed' WHERE id = ?")->execute([$id]);
 
-  // Notify customer
-  $confirmTitle = 'Booking Confirmed!';
-  $confirmBody = 'Your booking for "' . $b['title'] . '" (Code: ' . $b['booking_code'] . ') has been confirmed. Please proceed to payment.';
-  db()->prepare("INSERT INTO notifications (user_id,category,title,body,message) VALUES (?,?,?,?,?)")
-    ->execute([$b['user_id'], 'booking', $confirmTitle, $confirmBody, $confirmBody]);
+try {
+    $config = require __DIR__ . '/../config/config.php';
+    $mail   = require_once __DIR__ . '/../config/mailer.php';
+    if (!($mail instanceof \PHPMailer\PHPMailer\PHPMailer)) {
+        throw new \Exception('Mailer not initialized');
+    }
 
-  json_response(['ok'=>true, 'message'=>'Booking confirmed']);
+    $customerName  = $booking['customer_name'];
+    $customerEmail = $booking['customer_email'];
+    $tourTitle     = $booking['tour_title'];
+    $destination   = $booking['destination'];
+    $duration      = $booking['duration_days'];
+    $bookingCode   = $booking['booking_code'];
+    $totalNPR      = number_format(round((float)$booking['total_usd'] * 133));
+
+    $mail->addAddress($customerEmail, $customerName);
+    $mail->Subject = "Booking Confirmed — {$tourTitle}";
+    $mail->isHTML(true);
+    $mail->Body = "
+      <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0a0e0d; color: #f0ede8; border-radius: 16px; overflow: hidden;'>
+        <div style='background: linear-gradient(135deg, #1a2e1a, #0f1e10); padding: 32px; text-align: center;'>
+          <h1 style='font-size: 24px; color: #a8d96b; margin: 0;'>Safe Journey Planner</h1>
+          <p style='color: rgba(240,237,232,0.6); margin: 8px 0 0;'>Your booking has been confirmed!</p>
+        </div>
+        <div style='padding: 32px;'>
+          <p style='font-size: 16px; margin: 0 0 24px;'>Hello <strong>{$customerName}</strong>,</p>
+          <p style='color: rgba(240,237,232,0.7); line-height: 1.6;'>
+            Great news! Your booking for <strong style='color: #a8d96b;'>{$tourTitle}</strong> has been confirmed by the agency. Please proceed with the payment to finalize your booking.
+          </p>
+          <div style='background: rgba(168,217,107,0.08); border: 1px solid rgba(168,217,107,0.2); border-radius: 12px; padding: 20px; margin: 24px 0;'>
+            <h3 style='color: #a8d96b; margin: 0 0 16px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em;'>Booking Details</h3>
+            <table style='width: 100%; border-collapse: collapse;'>
+              <tr>
+                <td style='color: rgba(240,237,232,0.5); padding: 6px 0; font-size: 14px;'>Booking Code</td>
+                <td style='color: #fff; font-weight: 700; text-align: right; font-size: 14px;'>{$bookingCode}</td>
+              </tr>
+              <tr>
+                <td style='color: rgba(240,237,232,0.5); padding: 6px 0; font-size: 14px;'>Tour</td>
+                <td style='color: #fff; font-weight: 600; text-align: right; font-size: 14px;'>{$tourTitle}</td>
+              </tr>
+              <tr>
+                <td style='color: rgba(240,237,232,0.5); padding: 6px 0; font-size: 14px;'>Destination</td>
+                <td style='color: #fff; font-weight: 600; text-align: right; font-size: 14px;'>{$destination}</td>
+              </tr>
+              <tr>
+                <td style='color: rgba(240,237,232,0.5); padding: 6px 0; font-size: 14px;'>Duration</td>
+                <td style='color: #fff; font-weight: 600; text-align: right; font-size: 14px;'>{$duration} days</td>
+              </tr>
+              <tr style='border-top: 1px solid rgba(168,217,107,0.15);'>
+                <td style='color: rgba(240,237,232,0.5); padding: 10px 0 6px; font-size: 14px;'>Total Amount</td>
+                <td style='color: #a8d96b; font-weight: 700; text-align: right; font-size: 18px;'>NPR {$totalNPR}</td>
+              </tr>
+            </table>
+          </div>
+          <div style='background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.2); border-radius: 12px; padding: 16px; margin-bottom: 24px;'>
+            <p style='color: #60a5fa; margin: 0; font-size: 14px;'>
+              Please login to Safe Journey Planner and complete your payment to confirm your spot.
+            </p>
+          </div>
+          <p style='color: rgba(240,237,232,0.5); font-size: 13px; line-height: 1.6;'>
+            If you have any questions, you can message the agency directly through our platform.
+          </p>
+        </div>
+        <div style='background: rgba(255,255,255,0.03); padding: 20px 32px; text-align: center; border-top: 1px solid rgba(255,255,255,0.06);'>
+          <p style='color: rgba(240,237,232,0.3); font-size: 12px; margin: 0;'>Safe Journey Planner &copy; 2025 &middot; Nepal</p>
+        </div>
+      </div>
+    ";
+
+    $mail->send();
+  } catch (\Exception $e) {
+    error_log('Email send failed: ' . $e->getMessage());
+  }
+
+  //  In-app notification
+  try {
+    $db->prepare("
+      INSERT INTO notifications (user_id, title, body, category, is_read, created_at)
+      VALUES (?, ?, ?, 'booking', 0, NOW())
+    ")->execute([
+      $booking['user_id'],
+      "Booking Confirmed — {$booking['tour_title']}",
+      "Your booking ({$booking['booking_code']}) has been confirmed. Please proceed with payment.",
+    ]);
+  } catch (\Exception $e) {
+    error_log('Notification failed: ' . $e->getMessage());
+  }
+
+  json_response(['ok' => true, 'message' => 'Booking confirmed']);
 }
 
 function booking_reject(array $params, array $agency): void {
@@ -176,8 +260,6 @@ function booking_reject(array $params, array $agency): void {
   $b = $stmt->fetch();
   if (!$b) json_response(['error'=>'Booking not found'], 404);
   if ((int)$b['agency_id'] !== (int)$agency['id']) json_response(['error'=>'Forbidden'], 403);
-
-  // FIX #7: Guard against both 'paid' AND 'cancelled' statuses
   if ($b['status'] === 'paid') json_response(['error'=>'Already paid — cannot reject'], 409);
   if ($b['status'] === 'cancelled') json_response(['error'=>'Booking is already cancelled'], 409);
 
@@ -222,29 +304,22 @@ function payments_pay(array $user): void {
   $providerOrderId = trim((string)($data['provider_order_id'] ?? ''));
   $providerCaptureId = trim((string)($data['provider_capture_id'] ?? ''));
   if ($providerRef === '') {
-    if ($method === 'khalti') {
-      $providerRef = trim((string)($data['pidx'] ?? ''));
-    } elseif ($method === 'esewa') {
-      $providerRef = trim((string)($data['ref_id'] ?? ''));
-    }
+    if ($method === 'khalti') $providerRef = trim((string)($data['pidx'] ?? ''));
+    elseif ($method === 'esewa') $providerRef = trim((string)($data['ref_id'] ?? ''));
   }
-
   if ($providerOrderId === '') {
     if ($method === 'khalti') {
       $providerOrderId = trim((string)($data['pidx'] ?? ''));
-      if ($providerCaptureId === '') {
-        $providerCaptureId = trim((string)($data['transaction_id'] ?? ''));
-      }
+      if ($providerCaptureId === '') $providerCaptureId = trim((string)($data['transaction_id'] ?? ''));
     } elseif ($method === 'esewa') {
       $providerOrderId = trim((string)($data['transaction_uuid'] ?? ($data['oid'] ?? '')));
-      if ($providerCaptureId === '') {
-        $providerCaptureId = trim((string)($data['ref_id'] ?? ($data['refId'] ?? '')));
-      }
+      if ($providerCaptureId === '') $providerCaptureId = trim((string)($data['ref_id'] ?? ($data['refId'] ?? '')));
     }
   }
 
   $idempotencyKey = trim((string)($data['idempotency_key'] ?? ($_SERVER['HTTP_X_IDEMPOTENCY_KEY'] ?? '')));
 
+  $finalize = [];
   try {
     $finalize = payment_finalize_success($b, [
       'method' => $method,
@@ -258,7 +333,6 @@ function payments_pay(array $user): void {
     json_response(['error' => $e->getMessage()], 422);
   }
 
-  // Payment successful — user ko naya tier calculate gar (this paid booking counts now)
   $newTierInfo = get_user_loyalty_tier((int)$user['id']);
 
   json_response([
@@ -274,7 +348,6 @@ function payments_pay(array $user): void {
 }
 
 function bookings_list_admin(array $admin): void {
-  // FIX #6: Added pagination — default page=1, limit=50
   $page  = max(1, (int)($_GET['page'] ?? 1));
   $limit = max(1, min(100, (int)($_GET['limit'] ?? 50)));
   $offset = ($page - 1) * $limit;
@@ -287,8 +360,11 @@ function bookings_list_admin(array $admin): void {
                          JOIN users u ON u.id=b.user_id
                          JOIN tours t ON t.id=b.tour_id
                          ORDER BY b.created_at DESC
-                         LIMIT ? OFFSET ?");
-  $stmt->execute([$limit, $offset]);
+                         LIMIT :limit OFFSET :offset");
+  $stmt->bindValue(':limit',  $limit,  \PDO::PARAM_INT);
+  $stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
+  $stmt->execute();
+
   $items = $stmt->fetchAll();
   foreach ($items as &$it) {
     $it['travelers'] = $it['travelers_json'] ? json_decode($it['travelers_json'], true) : [];
@@ -325,16 +401,12 @@ function bookings_list_agency(array $agency): void {
 
 function bookings_delete(array $params, array $user): void {
   $id = (int)$params['id'];
-
   $stmt = db()->prepare("SELECT * FROM bookings WHERE id=? AND user_id=? LIMIT 1");
   $stmt->execute([$id, (int)$user['id']]);
   $b = $stmt->fetch();
   if (!$b) json_response(['error'=>'Booking not found'], 404);
-
   if ($b['status'] === 'paid') json_response(['error'=>'Paid booking cannot be deleted'], 409);
-
   db()->prepare("DELETE FROM bookings WHERE id=?")->execute([$id]);
-
   json_response(['ok'=>true, 'message'=>'Booking deleted']);
 }
 
@@ -347,17 +419,14 @@ function bookings_update(array $params, array $user): void {
   $b = $stmt->fetch();
   if (!$b) json_response(['error'=>'Booking not found'], 404);
 
-  // FIX #2: Prevent updates on confirmed/paid/cancelled bookings
   if (in_array($b['status'], ['confirmed', 'paid', 'cancelled'])) {
     json_response(['error' => 'Cannot update a booking with status: ' . $b['status']], 409);
   }
 
-  // FIX #1: Recalculate totals when travelers change
   if (!empty($data['travelers']) && is_array($data['travelers'])) {
     $travelers = $data['travelers'];
     if (count($travelers) < 1) json_response(['error'=>'At least 1 traveler required'], 422);
 
-    // Re-fetch tour price for recalculation
     $stmt2 = db()->prepare("SELECT price_usd FROM tours WHERE id=? LIMIT 1");
     $stmt2->execute([(int)$b['tour_id']]);
     $tour = $stmt2->fetch();
@@ -367,7 +436,6 @@ function bookings_update(array $params, array $user): void {
     $taxRate  = (float)$config['app']['tax_rate'];
     $subtotal = (float)$tour['price_usd'] * count($travelers);
     $tax      = round($subtotal * $taxRate, 2);
-    // Keep existing discount % — recalculate against new subtotal
     $oldSubtotal = (float)$b['subtotal_usd'];
     $oldDiscount = (float)$b['discount_usd'];
     $discountPct = $oldSubtotal > 0 ? ($oldDiscount / $oldSubtotal) : 0;
@@ -392,7 +460,6 @@ function refund_request(array $params, array $user): void {
   if (!$b) json_response(['error'=>'Booking not found'], 404);
   if ($b['status'] !== 'paid') json_response(['error'=>'Only paid bookings can request refund'], 409);
 
-  // Already requested check
   $stmt2 = db()->prepare("SELECT id FROM refund_requests WHERE booking_id=? AND status='pending' LIMIT 1");
   $stmt2->execute([$id]);
   if ($stmt2->fetch()) json_response(['error'=>'Refund already requested'], 409);
@@ -432,12 +499,10 @@ function refund_decide(array $params): void {
     ->execute([$status, $note, $id]);
 
   if ($status === 'approved') {
-    // Booking cancelled hunchha — tier auto-recalculate huncha (paid count ghatcha)
     db()->prepare("UPDATE bookings SET status='cancelled' WHERE id=?")
       ->execute([$r['booking_id']]);
   }
 
-  // Notify user
   $msg = $status === 'approved'
     ? 'Your refund for "' . $r['title'] . '" (Code: ' . $r['booking_code'] . ') has been approved!'
     : 'Your refund request for "' . $r['title'] . '" was rejected. Note: ' . $note;
@@ -447,14 +512,9 @@ function refund_decide(array $params): void {
   json_response(['ok'=>true]);
 }
 
-/**
- * NEW: Loyalty status endpoint — frontend le yo call garcha tier info lina
- * Route register garnu parcha: GET /api/loyalty/status
- */
 function loyalty_status(array $user): void {
   $tierInfo = get_user_loyalty_tier((int)$user['id']);
 
-  // Next tier info
   $nextTier = null;
   if ($tierInfo['tier'] === 1) {
     $nextTier = [

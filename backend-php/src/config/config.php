@@ -24,16 +24,16 @@ return [
   'payments' => [
     'enabled_methods' => ['khalti', 'esewa', 'card', 'paypal'],
     'esewa' => [
-      'merchant_code' => 'EPAYTEST',
-      'secret_key' => '8gBm/:&EnhH.1/q',
-      'form_url' => 'https://rc-epay.esewa.com.np/api/epay/main/v2/form',
-      'verify_url' => 'https://rc.esewa.com.np/api/epay/transaction/status/',
-      'npr_rate' => 133.0,
-    ],
+  'merchant_code' => 'EPAYTEST',
+  'secret_key'    => '8gBm/:&EnhH.1/q',
+  'form_url'      => 'https://rc-epay.esewa.com.np/api/epay/main/v2/form',
+  'verify_url'    => 'https://rc-epay.esewa.com.np/api/epay/transaction/status/',
+  'npr_rate'      => 133.0,
+],
     'khalti' => [
       'secret_key' => 'b53fe42044e241a989f249272b067b60',
       'initiate_url' => 'https://a.khalti.com/api/v2/epayment/initiate/',
-      'lookup_url' => 'https://dev.khalti.com/api/v2/epayment/lookup/',
+      'lookup_url' => 'https://a.khalti.com/api/v2/epayment/lookup/',
       'website_url' => 'http://localhost:5173',
       'npr_rate' => 133.0,
     ],
@@ -42,5 +42,14 @@ return [
       'client_id' => 'AerzdQRpQQrS16_aieFI-RXBUdVMlo9cH_Ek_tgWuzLYh-qhCCecoSzxsNKUzKM5RmBCCpCRlBUIl85K',
       'client_secret' => 'EBy89-iG4Vk3PtQ6KEMKWkytoOvLIC3mAA128W24vsfBh3U2wlKmGWzEF23xuitiLOknBR103CANxC6u',
     ],
-  ]
+  ],
+  'mail' => [
+    'host'     => 'smtp.gmail.com',
+    'port'     => 587,
+    'username' => 'sthabhumika066@gmail.com', // your gmail
+    'password' => 'wuib dddc diuv tbsy', // app password for your gmail (generate this in your Google Account settings)
+    'from_email'     => 'sthabhumika066@gmail.com',
+    'from_name'=> 'Safe Journey Planner',
+],
 ];
+

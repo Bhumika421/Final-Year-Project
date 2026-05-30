@@ -191,8 +191,8 @@ function esewa_append_query(string $url, array $query): string {
   }
   $base .= $parts['path'] ?? '';
   $existing = [];
-  if (!empty($parts['query'])) {
-    parse_str($parts['query'], $existing);
+  if (!empty($parts['query']) && is_string($parts['query'])) {
+    
   }
   $merged = array_merge($existing, $query);
   $queryString = http_build_query($merged);

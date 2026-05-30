@@ -11,8 +11,7 @@ function messages_send(array $actor): void {
 
   if (!$tourId || !$message) json_response(['error' => 'tour_id and message required'], 422);
 
-  // Get agency_id from tour
-  $stmt = db()->prepare("SELECT agency_id FROM tours WHERE id = ? LIMIT 1");
+  $stmt = db()->prepare("SELECT agency_id, title FROM tours WHERE id = ? LIMIT 1");
   $stmt->execute([$tourId]);
   $tour = $stmt->fetch();
   if (!$tour) json_response(['error' => 'Tour not found'], 404);
@@ -21,18 +20,92 @@ function messages_send(array $actor): void {
   $receiverId = (int)$tour['agency_id'];
   $senderRole = 'customer';
 
-  // If agency is sending
   if (($actor['role'] ?? '') === 'agency') {
     $receiverId = (int)($data['receiver_id'] ?? 0);
     if (!$receiverId) json_response(['error' => 'receiver_id required'], 422);
     $senderRole = 'agency';
   }
 
+  // Save message
   $stmt = db()->prepare("
     INSERT INTO messages (tour_id, sender_id, receiver_id, sender_role, message)
     VALUES (?, ?, ?, ?, ?)
   ");
   $stmt->execute([$tourId, $senderId, $receiverId, $senderRole, $message]);
+
+  // Sender name fetch
+  $senderStmt = db()->prepare("SELECT full_name FROM users WHERE id = ? LIMIT 1");
+  $senderStmt->execute([$senderId]);
+  $sender = $senderStmt->fetch();
+  $senderName = $sender['full_name'] ?? 'Someone';
+  $tourTitle  = $tour['title'] ?? 'a tour';
+
+  if ($senderRole === 'customer') {
+    $notifTitle = "New message from {$senderName}";
+    $notifBody  = "Re: {$tourTitle} — \"{$message}\"";
+    $notifTo    = $receiverId;
+  } else {
+    $notifTitle = "Reply from your tour agency";
+    $notifBody  = "Re: {$tourTitle} — \"{$message}\"";
+    $notifTo    = $receiverId;
+  }
+
+  // In-app notification
+  try {
+    db()->prepare("
+      INSERT INTO notifications (user_id, title, body, category, is_read, created_at)
+      VALUES (?, ?, ?, 'message', 0, NOW())
+    ")->execute([$notifTo, $notifTitle, $notifBody]);
+  } catch (\Exception $e) {
+    error_log('Notification failed: ' . $e->getMessage());
+  }
+
+  // email to customer if agency sent message
+  if ($senderRole === 'agency') {
+    try {
+      $config = require __DIR__ . '/../config/config.php';
+      $mail   = require __DIR__ . '/../config/mailer.php';
+
+      $custStmt = db()->prepare("SELECT full_name, email FROM users WHERE id = ? LIMIT 1");
+      $custStmt->execute([$notifTo]);
+      $customer = $custStmt->fetch();
+
+      if ($customer) {
+        $mail->addAddress($customer['email'], $customer['full_name']);
+        $mail->Subject = "New message from your tour agency — {$tourTitle}";
+        $mail->isHTML(true);
+        $mail->Body = "
+          <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0a0e0d; color: #f0ede8; border-radius: 16px; overflow: hidden;'>
+            <div style='background: linear-gradient(135deg, #1a2e1a, #0f1e10); padding: 32px; text-align: center;'>
+              <h1 style='font-size: 24px; color: #a8d96b; margin: 0;'>Safe Journey Planner</h1>
+              <p style='color: rgba(240,237,232,0.6); margin: 8px 0 0;'>You have a new message!</p>
+            </div>
+            <div style='padding: 32px;'>
+              <p style='font-size: 16px; margin: 0 0 16px;'>Hello <strong>{$customer['full_name']}</strong>,</p>
+              <p style='color: rgba(240,237,232,0.7); line-height: 1.6;'>
+                Your tour agency has replied to your message about <strong style='color: #a8d96b;'>{$tourTitle}</strong>.
+              </p>
+              <div style='background: rgba(168,217,107,0.08); border: 1px solid rgba(168,217,107,0.2); border-radius: 12px; padding: 20px; margin: 24px 0;'>
+                <p style='color: rgba(240,237,232,0.5); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 8px;'>Message from Agency</p>
+                <p style='color: #fff; font-size: 15px; margin: 0; line-height: 1.6;'>{$message}</p>
+              </div>
+              <div style='background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.2); border-radius: 12px; padding: 16px; margin-bottom: 24px;'>
+                <p style='color: #60a5fa; margin: 0; font-size: 14px;'>
+                  Login to Safe Journey Planner to reply to this message.
+                </p>
+              </div>
+            </div>
+            <div style='background: rgba(255,255,255,0.03); padding: 20px 32px; text-align: center; border-top: 1px solid rgba(255,255,255,0.06);'>
+              <p style='color: rgba(240,237,232,0.3); font-size: 12px; margin: 0;'>Safe Journey Planner &copy; 2025 &middot; Nepal</p>
+            </div>
+          </div>
+        ";
+        $mail->send();
+      }
+    } catch (\Exception $e) {
+      error_log('Message email failed: ' . $e->getMessage());
+    }
+  }
 
   json_response(['ok' => true, 'id' => (int)db()->lastInsertId()]);
 }
@@ -127,3 +200,4 @@ function messages_unread_count(array $actor): void {
   $stmt->execute([$uid]);
   json_response(['ok' => true, 'count' => (int)($stmt->fetch()['c'] ?? 0)]);
 }
+
