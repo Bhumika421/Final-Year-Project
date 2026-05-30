@@ -172,7 +172,7 @@ export default function Profile() {
                   }}>
                     {user?.role === 'admin' ? ' Super Admin' :
                      user?.role === 'agency' ? ' Agency' :
-                     '👤 Customer'}
+                     ' Customer'}
                   </span>
                 </div>
               </div>
@@ -219,7 +219,7 @@ export default function Profile() {
                                  user?.role === 'agency' ? 'rgba(59,111,212,0.25)' :
                                  'rgba(168,217,107,0.25)',
                   }}>
-                  ✏️ Edit Profile
+                   Edit Profile
                 </button>
               ) : (
                 <form onSubmit={saveProfile}>

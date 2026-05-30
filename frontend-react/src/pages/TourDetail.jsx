@@ -333,6 +333,10 @@ export default function TourDetail() {
         err.contact = 'Please enter a valid 10-digit number.';
         if (!hasError) { setMsg({ text: `Traveler ${i+1}: Please enter a valid 10-digit number.`, type: 'err' }); hasError = true; }
       }
+      if (t.age && (Number(t.age) < 1 || Number(t.age) > 99)) {
+    err.age = 'Age must be between 1 and 99.';
+    if (!hasError) { setMsg({ text: `Traveler ${i+1}: Age must be between 1 and 99.`, type: 'err' }); hasError = true; }
+  }
       return err;
     });
     setFieldErrors(errors);
@@ -553,7 +557,8 @@ export default function TourDetail() {
                   </div>
                   <div>
                     <div className="td-input-label">Age</div>
-                    <input className="td-input" placeholder="25" value={t.age} onChange={e => setTraveler(i, 'age', e.target.value.replace(/\D/g, '').slice(0, 3))} />
+                    <input className="td-input" placeholder="25" value={t.age} onChange={e => setTraveler(i, 'age', e.target.value.replace(/\D/g, '').slice(0, 2))} />
+                    {fieldErrors[i]?.age && <div className="td-field-err">{fieldErrors[i].age}</div>}
                   </div>
                   <div>
                     <div className="td-input-label">Contact</div>

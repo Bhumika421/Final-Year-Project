@@ -377,7 +377,7 @@ export default function Admin() {
       const pendingToursData    = resPendingTours.status    === 'fulfilled' ? (resPendingTours.value.data.items    || []) : [];
       const pendingAgenciesData = resPendingAgencies.status === 'fulfilled' ? (resPendingAgencies.value.data.items || []) : [];
       const ticketsData         = resTickets.status         === 'fulfilled' ? (resTickets.value.data.items         || []) : [];
-      const bookingsData        = resBookings.status        === 'fulfilled' ? (resBookings.value.data.items        || []) : [];
+      const bookingsData = resBookings.status === 'fulfilled' ? (resBookings.value.data.items || resBookings.value.data.bookings || []) : [];
       const usersData           = resUsers.status           === 'fulfilled' ? (resUsers.value.data.items           || []) : [];
       setRefunds(refundsData);
       setTours(toursData);
@@ -386,12 +386,20 @@ export default function Admin() {
       setTickets(ticketsData);
       setBookings(bookingsData);
       setUsers(usersData);
-      setStats({
-        totalUsers: usersData.length,
-        activeTours: toursData.filter(t => t.approval_status === 'approved').length,
-        totalBookings: bookingsData.length,
-        totalRevenue: bookingsData.filter(b => b.status === 'paid').reduce((sum, b) => sum + (parseFloat(b.total_usd) || 0), 0),
-      });
+     const totalBookings = resBookings.status === 'fulfilled'
+  ? (resBookings.value.data.meta?.total || bookingsData.length)
+  : bookingsData.length;
+
+const totalRevenue = bookingsData
+  .filter(b => b.status === 'paid')
+  .reduce((sum, b) => sum + (parseFloat(b.total_usd) || 0), 0);
+
+setStats({
+  totalUsers: usersData.length,
+  activeTours: toursData.filter(t => t.approval_status === 'approved').length,
+  totalBookings,
+  totalRevenue,
+});
     } catch (e) { console.error('Load error:', e); }
   }
 

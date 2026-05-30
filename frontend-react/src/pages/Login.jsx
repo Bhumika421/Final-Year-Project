@@ -419,7 +419,7 @@ export default function Login() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '36px' }}>
   {/*  Logo — click garda home jaucha */}
   <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-    <div className="lp-logo-icon">🏔</div>
+    <div className="lp-logo-icon"></div>
     <span className="lp-logo-text">Safe Journey</span>
   </Link>
 

@@ -25,12 +25,10 @@
     setAuthToken(null);
   }
 
-  // Page load huda token auto-set
   const _t = getToken();
   if (_t) setAuthToken(_t);
 
-  // 401 response aayo bhane token automatically clear gara
-  // Yesle loyalty.js ma getToken() null return garcha → API call nai hudaina
+ 
   api.interceptors.response.use(
     res => res,
     err => {

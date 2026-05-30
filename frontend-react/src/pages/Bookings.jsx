@@ -65,6 +65,7 @@ function EditModal({ booking, onClose, onSave }) {
     const errors = travelers.map((t, i) => {
       const e = { name: '', contact: '' };
       if (!t.name.trim()) { e.name = 'Name is required.'; if (!hasError) { setErr(`Traveler ${i+1}: Name is required.`); hasError = true; } }
+      
       const c = t.contact.replace(/\s/g, '');
       if (!c) { e.contact = 'Contact is required.'; if (!hasError) { setErr(`Traveler ${i+1}: Contact is required.`); hasError = true; } }
       else if (!/^\d{10}$/.test(c)) { e.contact = 'Must be 10 digits.'; if (!hasError) { setErr(`Traveler ${i+1}: Please enter a valid 10-digit number.`); hasError = true; } }
@@ -106,7 +107,7 @@ function EditModal({ booking, onClose, onSave }) {
             {[['name','Name *','Ram Sharma'],['age','Age','25'],['contact','Contact *','98XXXXXXXX']].map(([field, label, ph]) => (
               <div key={field} style={{ marginBottom: field === 'contact' ? 0 : 10 }}>
                 <div style={{ fontSize:10, fontWeight:600, color:'#555', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5 }}>{label}</div>
-                <input value={t[field]} onChange={e => setTraveler(i, field, field === 'age' ? e.target.value.replace(/\D/g,'').slice(0,3) : e.target.value)} placeholder={ph}
+                <input value={t[field]} onChange={e => setTraveler(i, field, field === 'age' ? e.target.value.replace(/\D/g,'').slice(0,2) : e.target.value)} placeholder={ph}
                   style={{ width:'100%', background:'rgba(255,255,255,0.05)', border:`1px solid ${fieldErrors[i]?.[field] ? 'rgba(248,113,113,0.5)' : '#2a2a2a'}`, borderRadius:8, padding:'10px 14px', color:'#f0ede8', fontSize:14, outline:'none', boxSizing:'border-box' }} />
                 {fieldErrors[i]?.[field] && <div style={{ color:'#f87171', fontSize:11, marginTop:4 }}>⚠ {fieldErrors[i][field]}</div>}
               </div>
@@ -453,7 +454,7 @@ export default function Bookings() {
 
         {!loading && !msg && items.length === 0 && (
           <div style={{ background:'#141414', border:'1px solid #222', borderRadius:16, padding:'48px 32px', textAlign:'center' }}>
-            <div style={{ fontSize:36, marginBottom:12 }}>🗺️</div>
+            <div style={{ fontSize:36, marginBottom:12 }}></div>
             <div style={{ fontFamily:"'Playfair Display', serif", fontSize:18, color:'#666', marginBottom:6 }}>No bookings yet</div>
             <div style={{ fontSize:13, color:'#444' }}>Explore tours and book your first trip!</div>
           </div>

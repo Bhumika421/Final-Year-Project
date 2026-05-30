@@ -353,7 +353,7 @@ export default function AgencySignup() {
                     </div>
                     <div className="as-field">
                       <label className="as-lbl">Business Name</label>
-                      <input className="as-input" placeholder="Agency name"
+                      <input className="as-input" placeholder="Name"
                         value={business_name} onChange={e => setBusinessName(e.target.value)} required />
                     </div>
                   </div>
